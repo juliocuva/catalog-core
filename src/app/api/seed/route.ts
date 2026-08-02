@@ -27,6 +27,22 @@ export async function GET() {
   const log = []
 
   try {
+    // 0. Seed Admin User
+    const existingUsers = await payload.find({ collection: 'users', limit: 1 })
+    if (existingUsers.totalDocs === 0) {
+      await payload.create({
+        collection: 'users',
+        data: {
+          email: 'juliocuva@gmail.com',
+          password: 'administrador2026',
+          role: 'administrador'
+        }
+      })
+      log.push('Created master admin user: juliocuva@gmail.com (Password: administrador2026)')
+    } else {
+      log.push('Users already exist, skipped admin creation.')
+    }
+
     // 1. Seed Categories
     const categoryMap: Record<string, string> = {}
     for (const cat of MOCK_CATEGORIES) {
