@@ -1,0 +1,11 @@
+const fs = require('fs');
+const path = 'c:/DTMS/catalog-core/src/app/(frontend)/catalogo/page.tsx';
+let content = fs.readFileSync(path, 'utf8');
+content = content.replaceAll('placeholder="Buscar..."', 'placeholder=""');
+content = content.replaceAll('text-xl font-bold leading-tight', 'text-2xl font-black leading-tight');
+content = content.replaceAll('font-bold text-lg', 'font-black text-xl tracking-tight');
+content = content.replaceAll('text-xs font-semibold text-gray-800', 'text-xs font-normal text-gray-800');
+content = content.replaceAll('text-[10px] font-semibold', 'text-[10px] font-light');
+content = content.replaceAll('text-sm font-semibold', 'text-sm font-light');
+content = content.replaceAll('text-xs font-bold bg-white/20', 'text-xs font-black bg-white/20 uppercase tracking-widest');
+fs.writeFileSync(path, content);
