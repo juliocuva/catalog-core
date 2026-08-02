@@ -36,7 +36,7 @@ export async function loginUser(formData: FormData) {
     }
   } catch (error: any) {
     console.error('Login error:', error)
-    return { success: false, error: 'Credenciales inválidas o error interno.' }
+    return { success: false, error: error.message || 'Error desconocido al iniciar sesión.' }
   }
 }
 
