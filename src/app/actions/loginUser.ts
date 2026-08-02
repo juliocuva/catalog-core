@@ -1,29 +1,29 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { getPayload } from 'payload'
+import configPromise from '@payload-config'
 
 export async function loginUser(formData: FormData) {
-  const email = formData.get('email')
-  const password = formData.get('password')
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
 
   if (!email || !password) {
     return { success: false, error: 'Por favor ingresa correo y contraseña.' }
   }
 
   try {
-    // Usamos el Local API rest de Payload para iniciar sesión
-    const res = await fetch('http://localhost:3000/api/users/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+    const payload = await getPayload({ config: await configPromise })
+    
+    const result = await payload.login({
+      collection: 'users',
+      data: { email, password },
     })
 
-    const data = await res.json()
-
-    if (res.ok && data.token) {
+    if (result && result.token) {
       // Configuramos la cookie de sesión para Payload
       const cookieStore = await cookies()
-      cookieStore.set('payload-token', data.token, {
+      cookieStore.set('payload-token', result.token, {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -32,11 +32,11 @@ export async function loginUser(formData: FormData) {
       })
       return { success: true }
     } else {
-      return { success: false, error: data.errors?.[0]?.message || 'Credenciales inválidas' }
+      return { success: false, error: 'Credenciales inválidas' }
     }
   } catch (error: any) {
     console.error('Login error:', error)
-    return { success: false, error: 'Error interno del servidor al iniciar sesión.' }
+    return { success: false, error: 'Credenciales inválidas o error interno.' }
   }
 }
 
