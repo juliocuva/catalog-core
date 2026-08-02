@@ -323,15 +323,60 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
             </div>
             
             <div className="p-6 overflow-y-auto">
-              <div className="bg-brand-primary/5 text-brand-primary p-4 rounded-xl mb-6">
-                <p className="text-sm">Para mantener el sistema seguro, la creación de usuarios debe realizarse desde el panel administrativo completo.</p>
-                <a href="/admin/collections/users/create" target="_blank" className="mt-3 w-full block text-center bg-brand-primary text-white text-sm font-bold py-2.5 rounded-lg hover:bg-blue-700 transition-colors">
-                  Ir al panel para crear usuario
-                </a>
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setIsSubmittingTeam(true);
+                  const formData = new FormData(e.currentTarget);
+                  const { createUser } = await import('@/app/actions/createUser');
+                  const result = await createUser(formData);
+                  setIsSubmittingTeam(false);
+                  
+                  if (result.success) {
+                    alert('Usuario creado exitosamente.');
+                    setIsTeamModalOpen(false);
+                  } else {
+                    alert('Error: ' + result.error);
+                  }
+                }} 
+                className="space-y-4 mb-6"
+              >
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Nombre Completo *</label>
+                  <input required type="text" name="name" placeholder="Ej. Juan Pérez" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Correo Electrónico *</label>
+                  <input required type="email" name="email" placeholder="usuario@empresa.com" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Contraseña *</label>
+                  <input required type="password" name="password" placeholder="••••••••" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Rol *</label>
+                    <select required name="role" defaultValue="vendedor" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary bg-white">
+                      <option value="vendedor">Vendedor / Comercial</option>
+                      <option value="diseñador">Diseñador</option>
+                      <option value="administrador">Administrador</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Teléfono</label>
+                    <input type="text" name="phone" placeholder="+1 234 567 890" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                  </div>
+                </div>
+                <button type="submit" disabled={isSubmittingTeam} className="w-full bg-brand-primary text-white font-bold text-sm py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 mt-2">
+                  {isSubmittingTeam ? 'Creando...' : 'Crear Nuevo Usuario'}
+                </button>
+              </form>
+              
+              <div className="pt-6 border-t border-gray-100">
+                <button onClick={() => { if(confirm('¿Seguro que deseas cerrar sesión?')) { logoutUser().then(() => window.location.reload()); } }} className="w-full border border-red-200 text-red-500 font-bold text-sm py-2.5 rounded-lg hover:bg-red-50 transition-colors">
+                  Cerrar Sesión Actual
+                </button>
               </div>
-              <button onClick={() => { if(confirm('¿Seguro que deseas cerrar sesión?')) { logoutUser().then(() => window.location.reload()); } }} className="w-full border border-red-200 text-red-500 font-bold text-sm py-2.5 rounded-lg hover:bg-red-50 transition-colors">
-                Cerrar Sesión Actual
-              </button>
             </div>
           </div>
         </div>
