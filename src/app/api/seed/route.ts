@@ -44,30 +44,30 @@ export async function GET() {
     }
 
     // 1. Seed Categories
-    const categoryMap: Record<string, string> = {}
+    const categoryMap: Record<string, number> = {}
     for (const cat of MOCK_CATEGORIES) {
       const existing = await payload.find({ collection: 'categories', where: { name: { equals: cat.name } } })
       if (existing.totalDocs === 0) {
         const created = await payload.create({ collection: 'categories', data: { name: cat.name, icon: cat.icon } })
-        categoryMap[cat.name] = String(created.id)
+        categoryMap[cat.name] = created.id as number
         log.push(`Created category: ${cat.name}`)
       } else {
-        categoryMap[cat.name] = String(existing.docs[0].id)
+        categoryMap[cat.name] = existing.docs[0].id as number
         log.push(`Found category: ${cat.name}`)
       }
     }
 
     // 2. Seed Brands
-    const brandMap: Record<string, string> = {}
+    const brandMap: Record<string, number> = {}
     for (const p of MOCK_PRODUCTS) {
       if (!brandMap[p.brandName]) {
         const existing = await payload.find({ collection: 'brands', where: { name: { equals: p.brandName } } })
         if (existing.totalDocs === 0) {
           const created = await payload.create({ collection: 'brands', data: { name: p.brandName } })
-          brandMap[p.brandName] = String(created.id)
+          brandMap[p.brandName] = created.id as number
           log.push(`Created brand: ${p.brandName}`)
         } else {
-          brandMap[p.brandName] = String(existing.docs[0].id)
+          brandMap[p.brandName] = existing.docs[0].id as number
         }
       }
     }
