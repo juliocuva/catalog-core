@@ -6,7 +6,7 @@ import CatalogClient from './CatalogClient'
 export const dynamic = 'force-dynamic';
 
 export default async function CatalogoPage() {
-  const payload = await getPayload({ config: await configPromise })
+  let payload;
   let isAdmin = false;
   let userRole = null;
   let products = [];
@@ -14,6 +14,7 @@ export default async function CatalogoPage() {
   let dbError = null;
 
   try {
+    payload = await getPayload({ config: await configPromise })
     const { user } = await payload.auth({ headers: await headers() })
     isAdmin = !!user;
     userRole = user?.role || null;
