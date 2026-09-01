@@ -16,20 +16,27 @@ export async function uploadProduct(formData: FormData) {
     }
 
     const name = formData.get('name') as string
-    const categoryId = formData.get('categoryId') as string
+    let categoryId = formData.get('categoryId') as string
+    const newCategoryName = formData.get('newCategoryName') as string
+    const description = formData.get('description') as string
     const isNew = formData.get('isNew') === 'true'
     
-    // Support up to 3 images
+    // Support 1 image
     const images: File[] = []
     const img1 = formData.get('image1') as File
-    const img2 = formData.get('image2') as File
-    const img3 = formData.get('image3') as File
     if (img1 && img1.size > 0) images.push(img1)
-    if (img2 && img2.size > 0) images.push(img2)
-    if (img3 && img3.size > 0) images.push(img3)
 
     if (!name || !categoryId || images.length === 0) {
-      return { success: false, error: 'Faltan campos requeridos o al menos una imagen' }
+      return { success: false, error: 'Faltan campos requeridos o la imagen' }
+    }
+
+    // Handle new category
+    if (categoryId === 'new' && newCategoryName) {
+      const newCat = await payload.create({
+        collection: 'categories',
+        data: { name: newCategoryName }
+      })
+      categoryId = String(newCat.id)
     }
 
     // 1. Upload Media
@@ -56,6 +63,7 @@ export async function uploadProduct(formData: FormData) {
       collection: 'products',
       data: {
         name,
+        description,
         category: Number(categoryId),
         images: mediaIds,
         isNew,

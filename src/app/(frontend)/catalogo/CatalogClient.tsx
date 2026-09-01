@@ -426,26 +426,46 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                   <input required type="text" name="name" defaultValue={editingProduct?.name || ''} placeholder="Ej. Tenis Runner" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary" />
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex gap-4 flex-col">
                   <div className="flex-1">
                     <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Categoría *</label>
-                    <select required name="categoryId" defaultValue={editingProduct?.categoryId || ''} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary bg-white">
+                    <select 
+                      required 
+                      name="categoryId" 
+                      defaultValue={editingProduct?.categoryId || ''} 
+                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary bg-white"
+                      onChange={(e) => {
+                        const newCatInput = document.getElementById('newCategoryContainer');
+                        if (newCatInput) {
+                          newCatInput.style.display = e.target.value === 'new' ? 'block' : 'none';
+                        }
+                      }}
+                    >
                       <option value="">Seleccionar...</option>
                       {initialCategories.map(cat => (
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
+                      <option value="new">+ Crear otra categoría...</option>
                     </select>
+                  </div>
+                  
+                  <div id="newCategoryContainer" style={{ display: 'none' }} className="flex-1">
+                    <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Nueva Categoría *</label>
+                    <input type="text" name="newCategoryName" placeholder="Nombre de la nueva categoría" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Fotografías (Hasta 3) *</label>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Fotografía *</label>
                   <div className="space-y-2">
                     <input {...(editingProduct ? {} : {required: true})} type="file" name="image1" accept="image/png, image/jpeg, image/webp" className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-primary/10 file:text-brand-primary hover:file:bg-brand-primary/20" />
-                    <input type="file" name="image2" accept="image/png, image/jpeg, image/webp" className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-primary/10 file:text-brand-primary hover:file:bg-brand-primary/20" />
-                    <input type="file" name="image3" accept="image/png, image/jpeg, image/webp" className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand-primary/10 file:text-brand-primary hover:file:bg-brand-primary/20" />
                   </div>
-                  <span className="text-xs text-gray-500 mt-2 block">El sistema las optimizará automáticamente a formato WebP (máx 800x800px). En móviles podrás usar la cámara o tu galería.</span>
+                  <span className="text-xs text-gray-500 mt-2 block">Tamaño máximo recomendado: 2000x2000px.</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1 uppercase tracking-wider">Descripción</label>
+                  <textarea name="description" rows={3} placeholder="Características principales del producto..." className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none"></textarea>
                 </div>
 
                 <div className="flex items-center gap-2">
