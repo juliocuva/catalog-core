@@ -8,10 +8,10 @@ export const dynamic = 'force-dynamic';
 export default async function CatalogoPage() {
   let payload;
   let isAdmin = false;
-  let userRole = null;
-  let products = [];
-  let categories = [];
-  let dbError = null;
+  let userRole: string | null = null;
+  let products: any[] = [];
+  let categories: any[] = [];
+  let dbError: string | null = null;
 
   try {
     payload = await getPayload({ config: await configPromise })
