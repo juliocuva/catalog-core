@@ -34,7 +34,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
     let updatedData: any = {
       name,
-      category: categoryId,
+      category: Number(categoryId),
       isNew,
     }
 

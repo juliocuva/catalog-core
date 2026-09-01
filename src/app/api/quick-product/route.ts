@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         name,
         description,
         status: 'active',
-        category: category || null,
+        category: category ? Number(category) : null,
         images: [
           {
             image: mediaDoc.id,

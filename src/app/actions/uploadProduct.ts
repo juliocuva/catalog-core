@@ -56,7 +56,7 @@ export async function uploadProduct(formData: FormData) {
       collection: 'products',
       data: {
         name,
-        category: categoryId,
+        category: Number(categoryId),
         images: mediaIds,
         isNew,
       },
