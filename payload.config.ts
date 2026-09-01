@@ -14,10 +14,7 @@ import { Users } from './src/collections/Users'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-import sharp from 'sharp'
-
 export default buildConfig({
-  sharp,
   admin: {
     user: 'users',
   },
