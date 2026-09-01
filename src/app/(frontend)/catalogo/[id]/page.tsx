@@ -78,7 +78,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
           <div className="text-gray-600 mb-8 leading-relaxed text-sm md:text-base">
             {product.description ? (
-              <p>{product.description}</p>
+              <div className="prose prose-sm max-w-none">
+                {typeof product.description === 'string' 
+                  ? <p>{product.description}</p> 
+                  : <p>Ver detalles en el panel de administrador.</p>}
+              </div>
             ) : (
               <p>Este producto no tiene una descripción detallada en este momento. Por favor contacta a un asesor para más información técnica o de materiales.</p>
             )}
