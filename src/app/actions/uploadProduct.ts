@@ -58,12 +58,44 @@ export async function uploadProduct(formData: FormData) {
       mediaIds.push({ image: uploadedMedia.id })
     }
 
+    // Prepare description for Lexical RichText field
+    let lexicalDescription = null;
+    if (description) {
+      lexicalDescription = {
+        root: {
+          type: "root",
+          format: "",
+          indent: 0,
+          version: 1,
+          children: [
+            {
+              type: "paragraph",
+              format: "",
+              indent: 0,
+              version: 1,
+              children: [
+                {
+                  mode: "normal",
+                  text: description,
+                  type: "text",
+                  style: "",
+                  detail: 0,
+                  format: 0,
+                  version: 1
+                }
+              ]
+            }
+          ]
+        }
+      };
+    }
+
     // 2. Create Product
     const newProduct = await payload.create({
       collection: 'products',
       data: {
         name,
-        description,
+        description: lexicalDescription as any,
         category: Number(categoryId),
         images: mediaIds,
         isNew,

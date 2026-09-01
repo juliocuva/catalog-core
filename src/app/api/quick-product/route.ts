@@ -36,12 +36,44 @@ export async function POST(request: Request) {
       },
     })
 
+    // Prepare description for Lexical RichText field
+    let lexicalDescription = null;
+    if (description) {
+      lexicalDescription = {
+        root: {
+          type: "root",
+          format: "",
+          indent: 0,
+          version: 1,
+          children: [
+            {
+              type: "paragraph",
+              format: "",
+              indent: 0,
+              version: 1,
+              children: [
+                {
+                  mode: "normal",
+                  text: description,
+                  type: "text",
+                  style: "",
+                  detail: 0,
+                  format: 0,
+                  version: 1
+                }
+              ]
+            }
+          ]
+        }
+      };
+    }
+
     // 3. Create Product linking the Media
     const productDoc = await payload.create({
       collection: 'products',
       data: {
         name,
-        description,
+        description: lexicalDescription as any,
         status: 'active',
         category: category ? Number(category) : null,
         images: [
