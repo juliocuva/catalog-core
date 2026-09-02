@@ -29,7 +29,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     // WhatsApp logic
     const currentUrl = `http://localhost:3000/catalogo/${product.id}` 
     const whatsappMessage = encodeURIComponent(`Hola, estoy interesado en el producto: ${product.name}. Puedes darme más información? ${currentUrl}`);
-    const whatsappLink = `https://wa.me/573000000000?text=${whatsappMessage}`;
+    const whatsappLink = `https://api.whatsapp.com/send?phone=573148575665&text=${whatsappMessage}`;
 
     // Separemos las especificaciones por tipo si se puede, o las renderizamos juntas
     // Asumiremos que si el nombre de la especificación es "Color" lo renderizamos como colores.

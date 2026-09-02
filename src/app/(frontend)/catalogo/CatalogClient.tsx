@@ -261,7 +261,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                   </button>
                   <a 
-                    href={`https://wa.me/?text=${encodeURIComponent('Hola, me interesa el producto ' + product.name)}`} 
+                    href={`https://api.whatsapp.com/send?phone=573148575665&text=${encodeURIComponent('Hola, me interesa el producto ' + product.name)}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="flex-1 bg-brand-light-blue text-brand-primary text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 hover:bg-brand-light-blue/80 transition-colors shadow-sm"
