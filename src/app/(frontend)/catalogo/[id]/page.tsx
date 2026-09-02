@@ -4,11 +4,16 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getPlaceholderImage } from '../../../utils/getPlaceholder'
 
+import { headers } from 'next/headers'
+
 export const dynamic = 'force-dynamic';
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const payload = await getPayload({ config: await configPromise })
   const resolvedParams = await params;
+  const headersList = await headers();
+  const host = headersList.get('host') || 'localhost:3000';
+  const protocol = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   
   try {
     const product = await payload.findByID({
@@ -27,7 +32,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     const brandName = (product.brand as any)?.name || 'General';
 
     // WhatsApp logic
-    const currentUrl = `http://localhost:3000/catalogo/${product.id}` 
+    const currentUrl = `${protocol}://${host}/catalogo/${product.id}` 
     const whatsappMessage = encodeURIComponent(`Hola, estoy interesado en el producto: ${product.name}. Puedes darme más información? ${currentUrl}`);
     const whatsappLink = `https://api.whatsapp.com/send?phone=573148575665&text=${whatsappMessage}`;
 
