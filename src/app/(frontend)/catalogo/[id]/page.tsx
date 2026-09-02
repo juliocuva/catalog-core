@@ -3,6 +3,7 @@ import configPromise from '@payload-config'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getPlaceholderImage } from '../../../utils/getPlaceholder'
+import { RichText } from '@payloadcms/richtext-lexical/react'
 
 import { headers } from 'next/headers'
 
@@ -36,11 +37,16 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     const whatsappMessage = encodeURIComponent(`Hola, estoy interesado en el producto: ${product.name}. Puedes darme más información? ${currentUrl}`);
     const whatsappLink = `https://api.whatsapp.com/send?phone=573148575665&text=${whatsappMessage}`;
 
-    // Separemos las especificaciones por tipo si se puede, o las renderizamos juntas
-    // Asumiremos que si el nombre de la especificación es "Color" lo renderizamos como colores.
-    const colors = product.specifications?.filter((s: any) => s.name.toLowerCase() === 'color' || s.name.toLowerCase() === 'colores') || [];
-    const sizes = product.specifications?.filter((s: any) => s.name.toLowerCase() === 'talla' || s.name.toLowerCase() === 'tallas' || s.name.toLowerCase() === 'tamaño') || [];
+    // Combine explicit colors/sizes fields with old specifications format
+    const explicitColors = (product as any).colors || [];
+    const explicitSizes = (product as any).sizes || [];
+    
+    const specColors = product.specifications?.filter((s: any) => s.name.toLowerCase() === 'color' || s.name.toLowerCase() === 'colores') || [];
+    const specSizes = product.specifications?.filter((s: any) => s.name.toLowerCase() === 'talla' || s.name.toLowerCase() === 'tallas' || s.name.toLowerCase() === 'tamaño') || [];
     const otherSpecs = product.specifications?.filter((s: any) => !['color', 'colores', 'talla', 'tallas', 'tamaño'].includes(s.name.toLowerCase())) || [];
+
+    const colors = [...explicitColors, ...specColors];
+    const sizes = [...explicitSizes, ...specSizes];
 
     return (
       <div className="bg-white min-h-screen pb-28 md:pb-0 font-sans flex flex-col md:flex-row max-w-7xl mx-auto">
@@ -86,12 +92,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               <div className="prose prose-sm max-w-none text-gray-700">
                 {typeof product.description === 'string' 
                   ? <p>{product.description}</p> 
-                  : product.description?.root?.children?.map((node: any, i: number) => {
-                      if (node.type === 'paragraph') {
-                        return <p key={i} className="mb-2">{node.children?.map((c: any) => c.text).join('')}</p>;
-                      }
-                      return null;
-                    }) || <p>Ver detalles en el panel de administrador.</p>}
+                  : <RichText data={product.description} />}
               </div>
             ) : (
               <p>Este producto no tiene una descripción detallada en este momento. Por favor contacta a un asesor para más información técnica o de materiales.</p>

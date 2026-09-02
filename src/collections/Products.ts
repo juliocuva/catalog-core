@@ -42,9 +42,33 @@ export const Products: CollectionConfig = {
       label: 'Descripción',
     },
     {
+      name: 'colors',
+      type: 'array',
+      label: 'Colores',
+      fields: [
+        {
+          name: 'value',
+          type: 'text',
+          label: 'Color (ej. Rojo, Azul)',
+        }
+      ]
+    },
+    {
+      name: 'sizes',
+      type: 'array',
+      label: 'Tallas',
+      fields: [
+        {
+          name: 'value',
+          type: 'text',
+          label: 'Talla (ej. S, M, 38)',
+        }
+      ]
+    },
+    {
       name: 'specifications',
       type: 'array',
-      label: 'Especificaciones',
+      label: 'Otras Especificaciones',
       fields: [
         {
           name: 'name',
