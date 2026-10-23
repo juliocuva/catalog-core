@@ -138,10 +138,11 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       const colorsArr = product.colors ? product.colors.split(',').map((c: string) => c.trim()).filter(Boolean) : [];
       setSelectedSizes(sizesArr);
       setSelectedColors(colorsArr);
+      const rawImgs = product.rawImages || [];
       setImagePreviews({
-        image1: product.image || null,
-        image2: null,
-        image3: null,
+        image1: rawImgs[0] || product.image || null,
+        image2: rawImgs[1] || null,
+        image3: rawImgs[2] || null,
       });
     } else {
       setSelectedSizes([]);
@@ -201,12 +202,34 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       .map((s: any) => s.value)
       .filter(Boolean);
 
+    let mainImg = 'https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=600&auto=format&fit=crop';
+    let rawImages: string[] = [];
+    if (p.mockImageUrl) {
+      try {
+        const parsed = JSON.parse(p.mockImageUrl);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          rawImages = parsed;
+          mainImg = parsed[0];
+        } else if (typeof parsed === 'string' && parsed) {
+          rawImages = [parsed];
+          mainImg = parsed;
+        }
+      } catch {
+        rawImages = [p.mockImageUrl];
+        mainImg = p.mockImageUrl;
+      }
+    } else if (p.images?.[0]?.image?.url) {
+      mainImg = p.images[0].image.url;
+      rawImages = p.images.map((imgItem: any) => imgItem?.image?.url).filter(Boolean);
+    }
+
     return {
       id: p.id,
       name: p.name,
       brand: p.brand?.name || 'Guapura Boutique',
       categoryId: p.category?.id || (p.category ? p.category : null),
-      image: p.mockImageUrl || p.images?.[0]?.image?.url || 'https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=600&auto=format&fit=crop',
+      image: mainImg,
+      rawImages,
       isNew: p.isNew || false,
       price: priceSpec?.value || '',
       sizes: sizeSpecs.join(', '),
@@ -317,24 +340,72 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
     }
   };
 
+  const compressFileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 900;
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleUploadProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsUploading(true);
-    const formData = new FormData(e.currentTarget);
-    let result;
-    if (editingProduct) {
-      result = await updateProduct(editingProduct.id, formData);
-    } else {
-      result = await uploadProduct(formData);
-    }
-    
-    setIsUploading(false);
-    if (result.success) {
-      setIsUploadModalOpen(false);
-      setEditingProduct(null);
-      router.refresh();
-    } else {
-      alert('Error: ' + result.error);
+    try {
+      const formEl = e.currentTarget;
+      const formData = new FormData(formEl);
+
+      // Pre-compress selected files client-side for instant mobile upload
+      // and 0 Vercel storage consumption
+      for (const slot of ['image1', 'image2', 'image3']) {
+        const file = formData.get(slot) as File | null;
+        if (file && file.size > 0) {
+          const base64 = await compressFileToDataUrl(file);
+          formData.append(`base64_${slot}`, base64);
+        } else if (editingProduct && imagePreviews[slot] && imagePreviews[slot]?.startsWith('data:image')) {
+          formData.append(`base64_${slot}`, imagePreviews[slot]!);
+        }
+      }
+
+      let result;
+      if (editingProduct) {
+        result = await updateProduct(editingProduct.id, formData);
+      } else {
+        result = await uploadProduct(formData);
+      }
+      
+      if (result.success) {
+        setIsUploadModalOpen(false);
+        setEditingProduct(null);
+        router.refresh();
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (err: any) {
+      alert('Error al procesar prenda: ' + (err.message || 'Error de conexión'));
+    } finally {
+      setIsUploading(false);
     }
   };
 

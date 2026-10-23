@@ -28,11 +28,25 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       return notFound()
     }
 
-    const galleryUrls: string[] = (product.images || [])
+    let galleryUrls: string[] = (product.images || [])
       .map((item: any) => item?.image?.url)
       .filter(Boolean);
+
+    if ((product as any).mockImageUrl) {
+      try {
+        const parsed = JSON.parse((product as any).mockImageUrl);
+        if (Array.isArray(parsed)) {
+          galleryUrls = [...galleryUrls, ...parsed.filter(Boolean)];
+        } else if (typeof parsed === 'string' && parsed) {
+          galleryUrls.push(parsed);
+        }
+      } catch {
+        galleryUrls.push((product as any).mockImageUrl);
+      }
+    }
+
     if (galleryUrls.length === 0) {
-      galleryUrls.push((product as any).mockImageUrl || getPlaceholderImage(product.name));
+      galleryUrls.push(getPlaceholderImage(product.name));
     }
 
     const categoryName = (product.category as any)?.name || 'Colección';

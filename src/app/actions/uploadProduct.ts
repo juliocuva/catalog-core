@@ -3,14 +3,39 @@
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 
 export async function uploadProduct(formData: FormData) {
   try {
     const payload = await getPayload({ config: await configPromise })
 
-    // Security Check
-    const { user } = await payload.auth({ headers: await headers() })
+    // Robust Security Check
+    const cookieStore = await cookies()
+    const token = cookieStore.get('payload-token')?.value
+    let user = null
+
+    if (token) {
+      try {
+        const authRes = await payload.auth({
+          headers: new Headers({
+            Authorization: `JWT ${token}`,
+          }),
+        })
+        user = authRes.user
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    if (!user) {
+      try {
+        const authRes = await payload.auth({ headers: await headers() })
+        user = authRes.user
+      } catch (e) {
+        // user remains null
+      }
+    }
+
     if (!user || !['administrador', 'comercial'].includes(user.role as string)) {
       return { success: false, error: 'No tienes permisos para crear productos.' }
     }
@@ -23,8 +48,8 @@ export async function uploadProduct(formData: FormData) {
     const sizes = (formData.get('sizes') as string)?.trim()
     const colors = (formData.get('colors') as string)?.trim()
     const isNew = formData.get('isNew') === 'true'
-    
-    // Support up to 3 images
+
+    // Support up to 3 images (as files or pre-compressed base64 data URLs)
     const images: File[] = []
     const img1 = formData.get('image1') as File
     const img2 = formData.get('image2') as File
@@ -33,37 +58,48 @@ export async function uploadProduct(formData: FormData) {
     if (img2 && img2.size > 0) images.push(img2)
     if (img3 && img3.size > 0) images.push(img3)
 
-    if (!name || !categoryId || images.length === 0) {
-      return { success: false, error: 'Faltan campos requeridos o la imagen' }
+    const hasBase64 = Boolean(
+      formData.get('base64_image1') ||
+      formData.get('base64_image2') ||
+      formData.get('base64_image3')
+    )
+
+    if (!name || !categoryId || (images.length === 0 && !hasBase64)) {
+      return { success: false, error: 'Faltan campos requeridos o la imagen de la prenda' }
     }
 
     // Handle new category
     if (categoryId === 'new' && newCategoryName) {
       const newCat = await payload.create({
         collection: 'categories',
-        data: { name: newCategoryName }
+        data: { name: newCategoryName },
       })
       categoryId = String(newCat.id)
     }
 
-    // 1. Upload Media
-    const mediaIds = []
-    for (const img of images) {
-      const arrayBuffer = await img.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
-      
-      const uploadedMedia = await payload.create({
-        collection: 'media',
-        data: { alt: name },
-        file: {
-          data: buffer,
-          mimetype: img.type,
-          name: img.name,
-          size: img.size,
-        },
-      })
-      mediaIds.push({ image: uploadedMedia.id })
+    // 1. Convert photos to lightweight Base64 Data URLs so they persist directly
+    // in PostgreSQL with ZERO local file system dependencies and ZERO consumption on Vercel
+    const base64List: string[] = []
+
+    for (const slot of ['base64_image1', 'base64_image2', 'base64_image3']) {
+      const val = formData.get(slot) as string | null
+      if (val && val.startsWith('data:image')) {
+        base64List.push(val)
+      }
     }
+
+    if (base64List.length === 0) {
+      for (const img of images) {
+        if (img && img.size > 0) {
+          const arrayBuffer = await img.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+          const mime = img.type || 'image/jpeg'
+          base64List.push(`data:${mime};base64,${buffer.toString('base64')}`)
+        }
+      }
+    }
+
+    const mockImageUrl = base64List.length > 0 ? JSON.stringify(base64List) : ''
 
     // Build specifications array (Precio, Talla, Color)
     const specifications: { name: string; value: string }[] = []
@@ -71,46 +107,54 @@ export async function uploadProduct(formData: FormData) {
       specifications.push({ name: 'Precio', value: price })
     }
     if (sizes) {
-      sizes.split(',').map(s => s.trim()).filter(Boolean).forEach(s => {
-        specifications.push({ name: 'Talla', value: s })
-      })
+      sizes
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((s) => {
+          specifications.push({ name: 'Talla', value: s })
+        })
     }
     if (colors) {
-      colors.split(',').map(c => c.trim()).filter(Boolean).forEach(c => {
-        specifications.push({ name: 'Color', value: c })
-      })
+      colors
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .forEach((c) => {
+          specifications.push({ name: 'Color', value: c })
+        })
     }
 
     // Prepare description for Lexical RichText field
-    let lexicalDescription = null;
+    let lexicalDescription = null
     if (description) {
       lexicalDescription = {
         root: {
-          type: "root",
-          format: "",
+          type: 'root',
+          format: '',
           indent: 0,
           version: 1,
           children: [
             {
-              type: "paragraph",
-              format: "",
+              type: 'paragraph',
+              format: '',
               indent: 0,
               version: 1,
               children: [
                 {
-                  mode: "normal",
+                  mode: 'normal',
                   text: description,
-                  type: "text",
-                  style: "",
+                  type: 'text',
+                  style: '',
                   detail: 0,
                   format: 0,
-                  version: 1
-                }
-              ]
-            }
-          ]
-        }
-      };
+                  version: 1,
+                },
+              ],
+            },
+          ],
+        },
+      }
     }
 
     // 2. Create Product
@@ -120,9 +164,9 @@ export async function uploadProduct(formData: FormData) {
         name,
         description: lexicalDescription as any,
         category: Number(categoryId),
-        images: mediaIds,
         specifications,
         isNew,
+        mockImageUrl,
       },
     })
 
