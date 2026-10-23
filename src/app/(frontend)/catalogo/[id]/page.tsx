@@ -28,21 +28,30 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       return notFound()
     }
 
-    let galleryUrls: string[] = (product.images || [])
-      .map((item: any) => item?.image?.url)
-      .filter(Boolean);
+    let galleryUrls: string[] = [];
 
+    // Prioritize mockImageUrl (stores base64 data URLs or cloud URLs)
     if ((product as any).mockImageUrl) {
       try {
         const parsed = JSON.parse((product as any).mockImageUrl);
         if (Array.isArray(parsed)) {
-          galleryUrls = [...galleryUrls, ...parsed.filter(Boolean)];
-        } else if (typeof parsed === 'string' && parsed) {
-          galleryUrls.push(parsed);
+          galleryUrls = parsed.filter((url: any) => typeof url === 'string' && (url.startsWith('http') || url.startsWith('data:image')));
+        } else if (typeof parsed === 'string' && (parsed.startsWith('http') || parsed.startsWith('data:image'))) {
+          galleryUrls = [parsed];
         }
       } catch {
-        galleryUrls.push((product as any).mockImageUrl);
+        if (typeof (product as any).mockImageUrl === 'string' && ((product as any).mockImageUrl.startsWith('http') || (product as any).mockImageUrl.startsWith('data:image'))) {
+          galleryUrls = [(product as any).mockImageUrl];
+        }
       }
+    }
+
+    // Only if mockImageUrl did not provide any images, check product.images (filtering out broken local relative paths)
+    if (galleryUrls.length === 0 && product.images && Array.isArray(product.images)) {
+      const mediaUrls = product.images
+        .map((item: any) => item?.image?.url)
+        .filter((url: string | undefined): url is string => Boolean(url && (url.startsWith('http') || url.startsWith('data:image'))));
+      galleryUrls = mediaUrls;
     }
 
     if (galleryUrls.length === 0) {

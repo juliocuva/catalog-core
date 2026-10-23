@@ -218,9 +218,14 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
         rawImages = [p.mockImageUrl];
         mainImg = p.mockImageUrl;
       }
-    } else if (p.images?.[0]?.image?.url) {
-      mainImg = p.images[0].image.url;
-      rawImages = p.images.map((imgItem: any) => imgItem?.image?.url).filter(Boolean);
+    } else if (p.images && p.images.length > 0) {
+      const validMedia = p.images
+        .map((imgItem: any) => imgItem?.image?.url)
+        .filter((url: string) => url && (url.startsWith('http') || url.startsWith('data:image')));
+      if (validMedia.length > 0) {
+        mainImg = validMedia[0];
+        rawImages = validMedia;
+      }
     }
 
     return {
@@ -600,7 +605,14 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                 )}
                 <Link href={`/catalogo/${product.id}`} className="block w-full h-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=600&auto=format&fit=crop';
+                    }}
+                    className="w-full h-full object-cover mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
+                  />
                 </Link>
               </div>
 
