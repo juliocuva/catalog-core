@@ -1,4 +1,8 @@
+import path from 'path'
 import { CollectionConfig } from 'payload'
+
+const isVercel = Boolean(process.env.VERCEL)
+const staticDir = isVercel ? '/tmp/media' : path.resolve(process.cwd(), 'media')
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -9,7 +13,7 @@ export const Media: CollectionConfig = {
     read: () => true,
   },
   upload: {
-    staticDir: 'media',
+    staticDir,
     mimeTypes: ['image/*'],
     adminThumbnail: 'thumbnail',
     // Auto-convert to webp and resize
