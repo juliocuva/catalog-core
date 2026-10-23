@@ -1,24 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playwrite+AU+VIC:wght@100..400&family=Ubuntu:wght@300;400;500;700;900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-brand-red: #FF383F;
+  --color-brand-red: #715421;
   --color-brand-gray: #A9A9A9;
-  --color-brand-light-blue: #CAEBF2;
-  --color-brand-light-gray: #EFEFEF;
-  --color-brand-dark-blue: #112D42;
+  --color-brand-light-blue: #F5E6F4;
+  --color-brand-light-gray: #FAF7FA;
+  --color-brand-dark-blue: #993895;
   
-  --color-brand-primary: #112D42; /* Use dark blue as main primary */
-  --color-brand-accent: #FF383F; /* Use red as accent */
+  --color-brand-primary: #993895; /* Púrpura oficial Guapura */
+  --color-brand-accent: #715421; /* Dorado/Bronce oficial Boutique */
   --color-brand-green: #25d366; /* Kept for WhatsApp */
   
   --font-sans: 'Ubuntu', sans-serif;
+  --font-script: 'Playwrite AU VIC', cursive;
+}
+
+.font-script {
+  font-family: 'Playwrite AU VIC', cursive;
+  display: inline-block;
+  transform: rotate(-5deg);
+  transform-origin: center center;
+  font-size: 1.15em;
 }
 
 @layer base {
   :root {
-    --background: #EFEFEF; /* From the palette */
-    --foreground: #112D42; /* Dark blue for text */
+    --background: #FAF7FA;
+    --foreground: #2D192C;
   }
 }
 

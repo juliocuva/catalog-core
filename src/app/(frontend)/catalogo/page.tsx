@@ -33,6 +33,17 @@ export default async function CatalogoPage() {
       limit: 100,
     })
     categories = categoriesRes.docs;
+
+    // Si la base de datos está totalmente vacía de categorías (primer arranque), inicializamos las 4 de Guapura
+    if (categories.length === 0) {
+      const { setupInitialCategories } = await import('@/app/actions/initGuapuraCategories');
+      await setupInitialCategories();
+      const updatedCategories = await payload.find({
+        collection: 'categories',
+        limit: 100,
+      });
+      categories = updatedCategories.docs;
+    }
   } catch (err: any) {
     dbError = err.message || String(err);
     console.error("Catalogo DB Error:", err);

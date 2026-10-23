@@ -19,12 +19,19 @@ export async function uploadProduct(formData: FormData) {
     let categoryId = formData.get('categoryId') as string
     const newCategoryName = formData.get('newCategoryName') as string
     const description = formData.get('description') as string
+    const price = (formData.get('price') as string)?.trim()
+    const sizes = (formData.get('sizes') as string)?.trim()
+    const colors = (formData.get('colors') as string)?.trim()
     const isNew = formData.get('isNew') === 'true'
     
-    // Support 1 image
+    // Support up to 3 images
     const images: File[] = []
     const img1 = formData.get('image1') as File
+    const img2 = formData.get('image2') as File
+    const img3 = formData.get('image3') as File
     if (img1 && img1.size > 0) images.push(img1)
+    if (img2 && img2.size > 0) images.push(img2)
+    if (img3 && img3.size > 0) images.push(img3)
 
     if (!name || !categoryId || images.length === 0) {
       return { success: false, error: 'Faltan campos requeridos o la imagen' }
@@ -56,6 +63,22 @@ export async function uploadProduct(formData: FormData) {
         },
       })
       mediaIds.push({ image: uploadedMedia.id })
+    }
+
+    // Build specifications array (Precio, Talla, Color)
+    const specifications: { name: string; value: string }[] = []
+    if (price) {
+      specifications.push({ name: 'Precio', value: price })
+    }
+    if (sizes) {
+      sizes.split(',').map(s => s.trim()).filter(Boolean).forEach(s => {
+        specifications.push({ name: 'Talla', value: s })
+      })
+    }
+    if (colors) {
+      colors.split(',').map(c => c.trim()).filter(Boolean).forEach(c => {
+        specifications.push({ name: 'Color', value: c })
+      })
     }
 
     // Prepare description for Lexical RichText field
@@ -98,6 +121,7 @@ export async function uploadProduct(formData: FormData) {
         description: lexicalDescription as any,
         category: Number(categoryId),
         images: mediaIds,
+        specifications,
         isNew,
       },
     })

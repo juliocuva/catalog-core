@@ -16,7 +16,12 @@ export async function updateProduct(productId: string, formData: FormData) {
     }
 
     const name = formData.get('name') as string
-    const categoryId = formData.get('categoryId') as string
+    let categoryId = formData.get('categoryId') as string
+    const newCategoryName = formData.get('newCategoryName') as string
+    const description = (formData.get('description') as string)?.trim()
+    const price = (formData.get('price') as string)?.trim()
+    const sizes = (formData.get('sizes') as string)?.trim()
+    const colors = (formData.get('colors') as string)?.trim()
     const isNew = formData.get('isNew') === 'true'
     
     // Support up to 3 images
@@ -32,10 +37,68 @@ export async function updateProduct(productId: string, formData: FormData) {
       return { success: false, error: 'Nombre y categoría son requeridos' }
     }
 
+    // Handle new category
+    if (categoryId === 'new' && newCategoryName) {
+      const newCat = await payload.create({
+        collection: 'categories',
+        data: { name: newCategoryName }
+      })
+      categoryId = String(newCat.id)
+    }
+
+    // Build specifications array
+    const specifications: { name: string; value: string }[] = []
+    if (price) {
+      specifications.push({ name: 'Precio', value: price })
+    }
+    if (sizes) {
+      sizes.split(',').map(s => s.trim()).filter(Boolean).forEach(s => {
+        specifications.push({ name: 'Talla', value: s })
+      })
+    }
+    if (colors) {
+      colors.split(',').map(c => c.trim()).filter(Boolean).forEach(c => {
+        specifications.push({ name: 'Color', value: c })
+      })
+    }
+
     let updatedData: any = {
       name,
       category: Number(categoryId),
       isNew,
+      specifications,
+    }
+
+    if (description !== undefined) {
+      updatedData.description = description
+        ? {
+            root: {
+              type: "root",
+              format: "",
+              indent: 0,
+              version: 1,
+              children: [
+                {
+                  type: "paragraph",
+                  format: "",
+                  indent: 0,
+                  version: 1,
+                  children: [
+                    {
+                      mode: "normal",
+                      text: description,
+                      type: "text",
+                      style: "",
+                      detail: 0,
+                      format: 0,
+                      version: 1
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        : null
     }
 
     // Si se subieron nuevas imágenes
@@ -68,6 +131,7 @@ export async function updateProduct(productId: string, formData: FormData) {
     })
 
     revalidatePath('/catalogo')
+    revalidatePath(`/catalogo/${productId}`)
     revalidatePath('/')
 
     return { success: true, product: updatedProduct }

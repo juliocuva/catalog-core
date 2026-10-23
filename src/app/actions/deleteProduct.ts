@@ -3,14 +3,39 @@
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 
 export async function deleteProduct(productId: string) {
   try {
     const payload = await getPayload({ config: await configPromise })
 
-    // Security Check
-    const { user } = await payload.auth({ headers: await headers() })
+    // Robust Security Check
+    const cookieStore = await cookies()
+    const token = cookieStore.get('payload-token')?.value
+    let user = null
+
+    if (token) {
+      try {
+        const authRes = await payload.auth({
+          headers: new Headers({
+            Authorization: `JWT ${token}`,
+          }),
+        })
+        user = authRes.user
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    if (!user) {
+      try {
+        const authRes = await payload.auth({ headers: await headers() })
+        user = authRes.user
+      } catch (e) {
+        // user remains null
+      }
+    }
+
     if (!user || !['administrador', 'comercial'].includes(user.role as string)) {
       return { success: false, error: 'No tienes permisos para eliminar productos.' }
     }

@@ -18,6 +18,12 @@ export async function POST(request: Request) {
 
     const payload = await getPayload({ config: await configPromise })
 
+    // Verificar autenticación (administrador o comercial)
+    const { user } = await payload.auth({ headers: request.headers })
+    if (!user || !['administrador', 'comercial'].includes(user.role as string)) {
+      return NextResponse.json({ error: 'No tienes permisos para subir prendas. Inicia sesión primero.' }, { status: 401 })
+    }
+
     // 1. Convert File to Buffer for Payload
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
