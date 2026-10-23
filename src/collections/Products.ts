@@ -92,9 +92,10 @@ export const Products: CollectionConfig = {
     },
     {
       name: 'mockImageUrl',
-      type: 'text',
+      type: 'textarea',
+      validate: () => true,
       admin: {
-        description: 'URL temporal de imagen (solo para seeder/mocks).',
+        description: 'URL o datos Base64 de las imágenes de la prenda.',
       }
     },
   ],

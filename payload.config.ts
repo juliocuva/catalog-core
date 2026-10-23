@@ -19,6 +19,7 @@ export default buildConfig({
   admin: {
     user: 'users',
   },
+  defaultMaxTextLength: 50000000,
   collections: [
     Users,
     Media,
