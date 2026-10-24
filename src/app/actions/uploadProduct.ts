@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { revalidatePath } from 'next/cache'
 import { headers, cookies } from 'next/headers'
+import { getCategoryIconSvg } from '@/app/utils/categoryIcons'
 
 export async function uploadProduct(formData: FormData) {
   try {
@@ -40,10 +41,10 @@ export async function uploadProduct(formData: FormData) {
       return { success: false, error: 'No tienes permisos para crear productos.' }
     }
 
-    const name = formData.get('name') as string
-    let categoryId = formData.get('categoryId') as string
-    const newCategoryName = formData.get('newCategoryName') as string
-    const description = formData.get('description') as string
+    const name = (formData.get('name') as string)?.trim()
+    let categoryId = (formData.get('categoryId') as string)?.trim()
+    const newCategoryName = (formData.get('newCategoryName') as string)?.trim()
+    const description = (formData.get('description') as string)?.trim()
     const price = (formData.get('price') as string)?.trim()
     const sizes = (formData.get('sizes') as string)?.trim()
     const colors = (formData.get('colors') as string)?.trim()
@@ -65,16 +66,47 @@ export async function uploadProduct(formData: FormData) {
     )
 
     if (!name || !categoryId || (images.length === 0 && !hasBase64)) {
-      return { success: false, error: 'Faltan campos requeridos o la imagen de la prenda' }
+      return { success: false, error: 'Faltan campos requeridos o la imagen del artículo' }
     }
 
     // Handle new category
-    if (categoryId === 'new' && newCategoryName) {
-      const newCat = await payload.create({
+    if (categoryId === 'new') {
+      if (!newCategoryName) {
+        return { success: false, error: 'Por favor ingresa el nombre de la nueva categoría.' }
+      }
+
+      // Check if category already exists
+      const existing = await payload.find({
         collection: 'categories',
-        data: { name: newCategoryName },
+        where: {
+          name: {
+            equals: newCategoryName,
+          },
+        },
+        limit: 1,
+        overrideAccess: true,
       })
-      categoryId = String(newCat.id)
+
+      if (existing.docs.length > 0) {
+        categoryId = String(existing.docs[0].id)
+      } else {
+        const defaultIcon = getCategoryIconSvg(newCategoryName)
+
+        const newCat = await payload.create({
+          collection: 'categories',
+          data: {
+            name: newCategoryName,
+            icon: defaultIcon,
+          },
+          overrideAccess: true,
+        })
+        categoryId = String(newCat.id)
+      }
+    }
+
+    const numCategoryId = Number(categoryId)
+    if (!categoryId || isNaN(numCategoryId)) {
+      return { success: false, error: 'La categoría seleccionada no es válida.' }
     }
 
     // 1. Convert photos to lightweight Base64 Data URLs so they persist directly
@@ -163,11 +195,12 @@ export async function uploadProduct(formData: FormData) {
       data: {
         name,
         description: lexicalDescription as any,
-        category: Number(categoryId),
+        category: numCategoryId,
         specifications,
         isNew,
         mockImageUrl,
       },
+      overrideAccess: true,
     })
 
     revalidatePath('/catalogo')

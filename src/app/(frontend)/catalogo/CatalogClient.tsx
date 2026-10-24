@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { uploadProduct } from '@/app/actions/uploadProduct'
 import { updateProduct } from '@/app/actions/updateProduct'
 import { deleteProduct } from '@/app/actions/deleteProduct'
 import { deleteCategory } from '@/app/actions/deleteCategory'
 import { createCategory } from '@/app/actions/createCategory'
 import { loginUser, logoutUser } from '@/app/actions/loginUser'
+import { getCategoryIconSvg } from '@/app/utils/categoryIcons'
 
 function extractPlainTextDescription(desc: any): string {
   if (!desc) return '';
@@ -39,27 +40,37 @@ const PRESET_COLORS = [
   { name: 'Estampado', bg: 'linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%)', border: '#CBD5E1' },
 ];
 
+const SAFE_FALLBACK_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23F8FAFC'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394A3B8' font-family='sans-serif' font-weight='600' font-size='15'%3EGuapura Boutique%3C/text%3E%3C/svg%3E";
+
 export default function CatalogClient({ initialProducts, initialCategories, isAdmin = false, userRole = null }: { initialProducts: any[], initialCategories: any[], isAdmin?: boolean, userRole?: string | null }) {
   const router = useRouter();
   const [categoriesList, setCategoriesList] = useState(initialCategories);
   const [productsList, setProductsList] = useState(initialProducts);
-
-  useEffect(() => {
-    setCategoriesList(initialCategories);
-  }, [initialCategories]);
-
-  useEffect(() => {
-    setProductsList(initialProducts);
-  }, [initialProducts]);
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareTargetProduct, setShareTargetProduct] = useState<any>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCategoryValue, setSelectedCategoryValue] = useState<string>('');
+  const [priceInput, setPriceInput] = useState<string>('');
+
+  const formatPriceValue = (val: string): string => {
+    const rawDigits = (val || '').replace(/\D/g, '');
+    if (!rawDigits) return '';
+    const formatted = rawDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `$ ${formatted}`;
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPriceValue(e.target.value);
+    setPriceInput(formatted);
+  };
 
   // Interactive Upload State
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
@@ -77,9 +88,6 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
   const [newCatNameInput, setNewCatNameInput] = useState('');
   const [isSubmittingCat, setIsSubmittingCat] = useState(false);
   const [deletingCatId, setDeletingCatId] = useState<string | null>(null);
-
-  // Team Management State
-  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
 
   // PWA Install State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -144,14 +152,26 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
         image2: rawImgs[1] || null,
         image3: rawImgs[2] || null,
       });
+      setSelectedCategoryValue(product.categoryId ? String(product.categoryId) : '');
+      setPriceInput(product.price ? formatPriceValue(product.price) : '');
     } else {
       setSelectedSizes([]);
       setSelectedColors([]);
       setImagePreviews({ image1: null, image2: null, image3: null });
+      setSelectedCategoryValue('');
+      setPriceInput('');
     }
     setCustomSizeInput('');
     setCustomColorInput('');
     setIsUploadModalOpen(true);
+  };
+
+  const removeImage = (slot: string) => {
+    setImagePreviews(prev => ({ ...prev, [slot]: null }));
+    if (typeof document !== 'undefined') {
+      const inputEl = document.getElementById(`file-${slot}`) as HTMLInputElement | null;
+      if (inputEl) inputEl.value = '';
+    }
   };
 
   const handleImageChange = (slot: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,58 +210,60 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
     }
   };
 
-  const mappedProducts = productsList.map(p => {
-    const specs = Array.isArray(p.specifications) ? p.specifications : [];
-    const priceSpec = specs.find((s: any) => ['precio', 'price', 'valor'].includes((s.name || '').toLowerCase()));
-    const sizeSpecs = specs
-      .filter((s: any) => ['talla', 'tallas', 'tamaño'].includes((s.name || '').toLowerCase()))
-      .map((s: any) => s.value)
-      .filter(Boolean);
-    const colorSpecs = specs
-      .filter((s: any) => ['color', 'colores'].includes((s.name || '').toLowerCase()))
-      .map((s: any) => s.value)
-      .filter(Boolean);
+  const mappedProducts = useMemo(() => {
+    return productsList.map(p => {
+      const specs = Array.isArray(p.specifications) ? p.specifications : [];
+      const priceSpec = specs.find((s: any) => ['precio', 'price', 'valor'].includes((s.name || '').toLowerCase()));
+      const sizeSpecs = specs
+        .filter((s: any) => ['talla', 'tallas', 'tamaño'].includes((s.name || '').toLowerCase()))
+        .map((s: any) => s.value)
+        .filter(Boolean);
+      const colorSpecs = specs
+        .filter((s: any) => ['color', 'colores'].includes((s.name || '').toLowerCase()))
+        .map((s: any) => s.value)
+        .filter(Boolean);
 
-    let mainImg = 'https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=600&auto=format&fit=crop';
-    let rawImages: string[] = [];
-    if (p.mockImageUrl) {
-      try {
-        const parsed = JSON.parse(p.mockImageUrl);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          rawImages = parsed;
-          mainImg = parsed[0];
-        } else if (typeof parsed === 'string' && parsed) {
-          rawImages = [parsed];
-          mainImg = parsed;
+      let mainImg = SAFE_FALLBACK_IMAGE;
+      let rawImages: string[] = [];
+      if (p.mockImageUrl) {
+        try {
+          const parsed = JSON.parse(p.mockImageUrl);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            rawImages = parsed;
+            mainImg = parsed[0];
+          } else if (typeof parsed === 'string' && parsed) {
+            rawImages = [parsed];
+            mainImg = parsed;
+          }
+        } catch {
+          rawImages = [p.mockImageUrl];
+          mainImg = p.mockImageUrl;
         }
-      } catch {
-        rawImages = [p.mockImageUrl];
-        mainImg = p.mockImageUrl;
+      } else if (p.images && p.images.length > 0) {
+        const validMedia = p.images
+          .map((imgItem: any) => imgItem?.image?.url)
+          .filter((url: string) => url && (url.startsWith('http') || url.startsWith('data:image')));
+        if (validMedia.length > 0) {
+          mainImg = validMedia[0];
+          rawImages = validMedia;
+        }
       }
-    } else if (p.images && p.images.length > 0) {
-      const validMedia = p.images
-        .map((imgItem: any) => imgItem?.image?.url)
-        .filter((url: string) => url && (url.startsWith('http') || url.startsWith('data:image')));
-      if (validMedia.length > 0) {
-        mainImg = validMedia[0];
-        rawImages = validMedia;
-      }
-    }
 
-    return {
-      id: p.id,
-      name: p.name,
-      brand: p.brand?.name || 'Guapura Boutique',
-      categoryId: p.category?.id || (p.category ? p.category : null),
-      image: mainImg,
-      rawImages,
-      isNew: p.isNew || false,
-      price: priceSpec?.value || '',
-      sizes: sizeSpecs.join(', '),
-      colors: colorSpecs.join(', '),
-      descriptionText: extractPlainTextDescription(p.description),
-    };
-  });
+      return {
+        id: p.id,
+        name: p.name,
+        brand: p.brand?.name || 'Guapura Boutique',
+        categoryId: p.category?.id || (p.category ? p.category : null),
+        image: mainImg,
+        rawImages,
+        isNew: p.isNew || false,
+        price: priceSpec?.value || '',
+        sizes: sizeSpecs.join(', '),
+        colors: colorSpecs.join(', '),
+        descriptionText: extractPlainTextDescription(p.description),
+      };
+    });
+  }, [productsList]);
 
   const filteredProducts = selectedCategoryId 
     ? mappedProducts.filter(p => p.categoryId === selectedCategoryId)
@@ -273,7 +295,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (confirm('¿Estás seguro de que deseas eliminar esta prenda?')) {
+    if (confirm('¿Estás seguro de que deseas eliminar este artículo?')) {
       const result = await deleteProduct(productId);
       if (result.success) {
         setProductsList(prev => prev.filter(p => String(p.id) !== String(productId)));
@@ -333,7 +355,9 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       const res = await createCategory(trimmed);
       if (res.success && res.category) {
         setCategoriesList(prev => [...prev, res.category]);
+        setSelectedCategoryValue(String(res.category.id));
         setNewCatNameInput('');
+        setIsCategoryManagerOpen(false);
         router.refresh();
       } else {
         alert('Error: ' + (res.error || 'No se pudo crear la categoría'));
@@ -346,15 +370,27 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
   };
 
   const compressFileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 900;
+    return new Promise(async (resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Tiempo de espera agotado al comprimir la foto. Intenta con otra imagen.'));
+      }, 10000);
+
+      const cleanup = (url?: string) => {
+        clearTimeout(timeoutId);
+        if (url) {
+          try {
+            URL.revokeObjectURL(url);
+          } catch (e) {}
+        }
+      };
+
+      // 1. Try modern native createImageBitmap (fastest, lowest memory, handles EXIF)
+      if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+        try {
+          const bitmap = await createImageBitmap(file);
+          const maxDim = 1000;
+          let width = bitmap.width;
+          let height = bitmap.height;
           if (width > height && width > maxDim) {
             height = Math.round((height * maxDim) / width);
             width = maxDim;
@@ -362,15 +398,81 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
             width = Math.round((width * maxDim) / height);
             height = maxDim;
           }
+
+          const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
+          if (ctx) {
+            ctx.drawImage(bitmap, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            bitmap.close();
+            cleanup();
+            return resolve(dataUrl);
+          }
+          bitmap.close();
+        } catch (bitmapErr) {
+          // Fallback to Image element
+        }
+      }
+
+      // 2. Fallback to HTML Image using blob URL
+      try {
+        const blobUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.naturalWidth || img.width;
+            let height = img.naturalHeight || img.height;
+            const maxDim = 1000;
+            if (width > height && width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              cleanup(blobUrl);
+              return reject(new Error('No se pudo inicializar canvas'));
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            cleanup(blobUrl);
+            resolve(dataUrl);
+          } catch (err: any) {
+            cleanup(blobUrl);
+            reject(new Error('Error al comprimir: ' + (err.message || 'error')));
+          }
         };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
+
+        img.onerror = () => {
+          cleanup(blobUrl);
+          // 3. Fallback to FileReader
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const res = e.target?.result as string;
+            if (res) {
+              resolve(res);
+            } else {
+              reject(new Error('No se pudo decodificar la imagen'));
+            }
+          };
+          reader.onerror = () => {
+            reject(new Error('No se pudo leer la imagen'));
+          };
+          reader.readAsDataURL(file);
+        };
+
+        img.src = blobUrl;
+      } catch (err: any) {
+        cleanup();
+        reject(new Error('Error al procesar archivo: ' + err.message));
+      }
     });
   };
 
@@ -381,15 +483,49 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       const formEl = e.currentTarget;
       const formData = new FormData(formEl);
 
-      // Pre-compress selected files client-side for instant mobile upload
-      // and 0 Vercel storage consumption
+      const catId = (formData.get('categoryId') as string)?.trim();
+      const newCatName = (formData.get('newCategoryName') as string)?.trim();
+
+      if (!catId) {
+        alert('Por favor selecciona una categoría para el artículo.');
+        setIsUploading(false);
+        return;
+      }
+
+      if (catId === 'new' && !newCatName) {
+        alert('Por favor escribe el nombre de la nueva categoría.');
+        setIsUploading(false);
+        return;
+      }
+
+      // Include any currently typed size/color
+      const finalSizes = [...selectedSizes];
+      const pendingSize = customSizeInput.trim().toUpperCase();
+      if (pendingSize && !finalSizes.includes(pendingSize)) {
+        finalSizes.push(pendingSize);
+      }
+      formData.set('sizes', finalSizes.join(', '));
+
+      const finalColors = [...selectedColors];
+      const pendingColor = customColorInput.trim();
+      if (pendingColor && !finalColors.includes(pendingColor)) {
+        finalColors.push(pendingColor);
+      }
+      formData.set('colors', finalColors.join(', '));
+
+      // Pre-compress selected files client-side and delete raw files
       for (const slot of ['image1', 'image2', 'image3']) {
         const file = formData.get(slot) as File | null;
         if (file && file.size > 0) {
           const base64 = await compressFileToDataUrl(file);
           formData.append(`base64_${slot}`, base64);
-        } else if (editingProduct && imagePreviews[slot] && imagePreviews[slot]?.startsWith('data:image')) {
-          formData.append(`base64_${slot}`, imagePreviews[slot]!);
+          // Delete raw file to avoid 15MB upload over mobile network
+          formData.delete(slot);
+        } else {
+          formData.delete(slot);
+          if (editingProduct && imagePreviews[slot] && imagePreviews[slot]?.startsWith('data:image')) {
+            formData.append(`base64_${slot}`, imagePreviews[slot]!);
+          }
         }
       }
 
@@ -403,12 +539,14 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       if (result.success) {
         setIsUploadModalOpen(false);
         setEditingProduct(null);
+        setSelectedCategoryValue('');
         router.refresh();
       } else {
         alert('Error: ' + result.error);
       }
     } catch (err: any) {
-      alert('Error al procesar prenda: ' + (err.message || 'Error de conexión'));
+      console.error('Error al subir artículo:', err);
+      alert('Error al procesar artículo: ' + (err.message || 'Error de conexión'));
     } finally {
       setIsUploading(false);
     }
@@ -425,20 +563,6 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       window.location.reload();
     } else {
       alert('Error: ' + result.error);
-    }
-  };
-
-  const handleUserIconClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!isAdmin) {
-      setIsLoginModalOpen(true);
-    } else if (userRole === 'administrador') {
-      setIsTeamModalOpen(true);
-    } else {
-      // Si está logueado pero no es admin, preguntamos si quiere cerrar sesión
-      if (confirm('¿Deseas cerrar sesión?')) {
-        logoutUser().then(() => window.location.reload());
-      }
     }
   };
 
@@ -483,20 +607,6 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
           {/* Icons */}
           <div className="flex items-center gap-2 md:gap-3 text-brand-primary">
-            {/* Install PWA Button */}
-            {isInstallable && (
-              <button
-                onClick={handleInstallClick}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-brand-primary text-white text-xs font-bold hover:bg-brand-accent transition-all shadow-sm active:scale-95"
-                title="Instalar App Guapura en tu dispositivo"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/app-icon.png" alt="Guapura App" className="w-4 h-4 rounded-full bg-white p-0.5 object-cover" />
-                <span className="hidden sm:inline">Instalar App</span>
-                <span className="sm:hidden">Instalar</span>
-              </button>
-            )}
-
             {/* Share Full Catalog */}
             <button
               onClick={() => openShareModal(null)}
@@ -507,15 +617,133 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
               <span className="hidden sm:inline">Compartir Catálogo</span>
             </button>
 
-            {/* User / Login */}
-            <button onClick={handleUserIconClick} className={`p-2 rounded-full transition-colors ${isAdmin ? 'bg-brand-primary/10 text-brand-primary' : 'hover:bg-gray-100 text-gray-600 hover:text-brand-primary'}`} title={isAdmin ? "Opciones de Cuenta" : "Acceso Comercial"}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-            </button>
+            {/* User Dropdown */}
+            <div className="relative">
+              <button 
+                type="button"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
+                className={`p-2 rounded-full transition-colors flex items-center justify-center ${isUserMenuOpen || isAdmin ? 'bg-brand-primary/10 text-brand-primary' : 'hover:bg-gray-100 text-gray-600 hover:text-brand-primary'}`} 
+                title="Usuario"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              </button>
+
+              {/* Backdrop para cerrar al hacer clic afuera */}
+              {isUserMenuOpen && (
+                <div 
+                  className="fixed inset-0 z-40 bg-transparent" 
+                  onClick={() => setIsUserMenuOpen(false)} 
+                />
+              )}
+
+              {/* Menú Desplegable */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2.5 w-64 md:w-72 rounded-2xl bg-white shadow-2xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  {/* Encabezado de Sesión */}
+                  <div className="px-4 py-2.5 border-b border-gray-100">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</div>
+                    <div className="text-xs font-bold text-gray-800 capitalize flex items-center gap-1.5 mt-0.5">
+                      <span className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-emerald-500' : 'bg-gray-300'}`}></span>
+                      {isAdmin ? `${userRole || 'Administrador'}` : 'Acceso Comercial'}
+                    </div>
+                  </div>
+
+                  <div className="py-1">
+                    {/* Botón 1: Instalar App */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        handleInstallClick();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/app-icon.png" alt="Guapura App" className="w-6 h-6 rounded-full object-cover shadow-xs group-hover:scale-105 transition-transform shrink-0" />
+                      <div>
+                        <div className="font-bold text-brand-primary">Instalar App</div>
+                        <div className="text-[10px] text-gray-400 font-normal">En este celular o PC</div>
+                      </div>
+                    </button>
+
+                    {/* Botón 2: Gestión de Roles */}
+                    {isAdmin ? (
+                      <a
+                        href="/admin/collections/users"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 group-hover:bg-brand-primary group-hover:text-white transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        </div>
+                        <div>
+                          <div className="font-bold text-gray-800">Gestión de Roles</div>
+                          <div className="text-[10px] text-gray-400 font-normal">Usuarios, roles y permisos</div>
+                        </div>
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          setIsLoginModalOpen(true);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 group-hover:bg-brand-primary group-hover:text-white transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        </div>
+                        <div>
+                          <div className="font-bold text-gray-800">Gestión de Roles</div>
+                          <div className="text-[10px] text-gray-400 font-normal">Iniciar sesión para administrar</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Iniciar Sesión (si no está autenticado) */}
+                    {!isAdmin && (
+                      <div className="pt-1 mt-1 border-t border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            setIsLoginModalOpen(true);
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-bold text-brand-primary hover:bg-brand-light-blue/50 flex items-center gap-3 transition-colors"
+                        >
+                          <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                          <span>Iniciar Sesión Comercial</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Cerrar Sesión (si está autenticado) */}
+                    {isAdmin && (
+                      <div className="pt-1 mt-1 border-t border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            if (confirm('¿Seguro que deseas cerrar sesión?')) {
+                              logoutUser().then(() => window.location.reload());
+                            }
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                        >
+                          <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                          <span>Cerrar Sesión</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             {/* Create Product (Admin/Comercial) */}
             {canCreate && (
-              <button onClick={() => openUploadModal(null)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-colors bg-brand-primary text-white text-xs font-bold hover:bg-brand-accent shadow-sm" title="Subir Prenda">
+              <button onClick={() => openUploadModal(null)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-colors bg-brand-primary text-white text-xs font-bold hover:bg-brand-accent shadow-sm" title="Subir Artículo">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-                <span>Subir Prenda</span>
+                <span>Subir Artículo</span>
               </button>
             )}
           </div>
@@ -554,8 +782,9 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
           {categoriesList.map((cat, idx) => {
              const isActive = selectedCategoryId === cat.id;
-             const rawHtml = cat.icon
-               ? cat.icon
+             const effectiveIcon = getCategoryIconSvg(cat.name, cat.icon);
+             const rawHtml = effectiveIcon
+               ? effectiveIcon
                    .replace(/className=/g, 'class=')
                    .replace(/strokeWidth=\{([^}]+)\}/g, 'stroke-width="$1"')
                    .replace(/strokeLinecap=/g, 'stroke-linecap=')
@@ -563,7 +792,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                : '';
                
              return (
-               <div key={idx} onClick={() => setSelectedCategoryId(cat.id)} className="flex flex-col items-center gap-2 cursor-pointer group">
+               <div key={cat.id || idx} onClick={() => setSelectedCategoryId(cat.id)} className="flex flex-col items-center gap-2 cursor-pointer group">
                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shadow-sm transition-all ${isActive ? 'bg-brand-primary text-white border-brand-primary' : 'bg-gray-50 border-gray-100 text-gray-600 group-hover:bg-brand-primary/10'}`}>
                    <span className="scale-[0.9]" dangerouslySetInnerHTML={{ __html: rawHtml }} />
                  </div>
@@ -579,7 +808,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
          <div className="flex justify-between items-center mb-4">
           <h3 className="font-black text-xl tracking-tight flex items-center gap-2">
             <svg className="w-5 h-5 text-brand-primary" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" /></svg>
-            Prendas <span className="font-script font-normal text-brand-primary text-2xl lowercase ml-1">favoritas</span>
+            Artículos <span className="font-script font-normal text-brand-primary text-2xl lowercase ml-1">favoritos</span>
           </h3>
         </div>
 
@@ -594,22 +823,24 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                   </span>
                 )}
                 {canEdit && (
-                  <button onClick={(e) => { e.preventDefault(); openUploadModal(product); }} className="absolute top-2 right-11 z-20 bg-white/95 shadow-sm p-1.5 rounded-full text-brand-primary hover:bg-brand-light-blue transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100" title="Editar prenda">
+                  <button onClick={(e) => { e.preventDefault(); openUploadModal(product); }} className="absolute top-2 right-11 z-20 bg-white/95 shadow-sm p-1.5 rounded-full text-brand-primary hover:bg-brand-light-blue transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100" title="Editar artículo">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                   </button>
                 )}
                 {canDelete && (
-                  <button onClick={(e) => { e.preventDefault(); handleDeleteProduct(product.id) }} className="absolute top-2 right-2 z-20 bg-white/95 shadow-sm p-1.5 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100" title="Eliminar prenda">
+                  <button onClick={(e) => { e.preventDefault(); handleDeleteProduct(product.id) }} className="absolute top-2 right-2 z-20 bg-white/95 shadow-sm p-1.5 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100" title="Eliminar artículo">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
                 )}
                 <Link href={`/catalogo/${product.id}`} className="block w-full h-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={product.image}
+                    src={product.image || SAFE_FALLBACK_IMAGE}
                     alt={product.name}
+                    loading="lazy"
                     onError={(e) => {
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=600&auto=format&fit=crop';
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = SAFE_FALLBACK_IMAGE;
                     }}
                     className="w-full h-full object-cover mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
                   />
@@ -663,7 +894,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
           <div className="w-full max-w-[420px] rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative bg-gradient-to-br from-white via-brand-light-blue/30 to-brand-light-blue/60">
             
             {/* Close Button */}
-            <button onClick={() => setIsLoginModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10 p-2">
+            <button onClick={() => { setIsLoginModalOpen(false); setShowPassword(false); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10 p-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
 
@@ -703,11 +934,28 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                 <div className="relative">
                   <input 
                     required 
-                    type="password" 
+                    type={showPassword ? 'text' : 'password'} 
                     name="password" 
                     placeholder="Contraseña" 
                     className="w-full text-sm border border-gray-200/60 bg-white/80 rounded-xl px-4 py-3.5 pr-12 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all placeholder:text-gray-400" 
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-primary p-1 focus:outline-none transition-colors"
+                    title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
                 </div>
 
                 {/* Submit Button */}
@@ -716,38 +964,6 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                 </button>
               </form>
 
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TEAM MANAGEMENT MODAL */}
-      {isTeamModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                Gestión de Equipo
-              </h3>
-              <button onClick={() => setIsTeamModalOpen(false)} className="text-gray-600 hover:text-gray-900">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto">
-              <div className="bg-brand-primary/5 text-brand-primary p-4 rounded-xl mb-6">
-                <p className="text-sm">La gestión de usuarios y roles está integrada directamente en el panel administrativo principal.</p>
-                <a href="/admin/collections/users" className="mt-3 w-full block text-center bg-brand-primary text-white text-sm font-bold py-2.5 rounded-lg hover:bg-blue-700 transition-colors">
-                  Ir al Administrador de Usuarios
-                </a>
-              </div>
-              
-              <div className="pt-6 border-t border-gray-100">
-                <button onClick={() => { if(confirm('¿Seguro que deseas cerrar sesión?')) { logoutUser().then(() => window.location.reload()); } }} className="w-full border border-red-200 text-red-500 font-bold text-sm py-2.5 rounded-lg hover:bg-red-50 transition-colors">
-                  Cerrar Sesión Actual
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -833,7 +1049,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                   <div key={cat.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 hover:bg-gray-100/70 transition-colors border border-gray-100">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-brand-primary">
-                        <span className="scale-75" dangerouslySetInnerHTML={{ __html: cat.icon || '' }} />
+                        <span className="scale-75" dangerouslySetInnerHTML={{ __html: getCategoryIconSvg(cat.name, cat.icon) }} />
                       </div>
                       <span className="text-sm font-semibold text-gray-800">{cat.name}</span>
                     </div>
@@ -885,7 +1101,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 shrink-0">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                {editingProduct ? 'Editar Prenda' : 'Subir Nueva Prenda'}
+                {editingProduct ? 'Editar Artículo' : 'Subir Nuevo Artículo'}
               </h3>
               <button onClick={() => { setIsUploadModalOpen(false); setEditingProduct(null); }} className="text-gray-400 hover:text-gray-700 p-1">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -899,7 +1115,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="block text-[11px] font-bold text-brand-primary uppercase tracking-wider">
-                      Fotografías de la Prenda {editingProduct ? '(Opcional cambiar)' : '*'}
+                      Fotografías del Artículo {editingProduct ? '(Opcional cambiar)' : '*'}
                     </label>
                     <span className="text-[10px] text-gray-400">Hasta 3 fotos</span>
                   </div>
@@ -921,7 +1137,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                             </label>
                             <button
                               type="button"
-                              onClick={() => setImagePreviews(prev => ({ ...prev, [slot]: null }))}
+                              onClick={() => removeImage(slot)}
                               className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 shadow-sm hover:bg-white"
                               title="Eliminar foto"
                             >
@@ -957,12 +1173,20 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                 {/* 2. NOMBRE Y PRECIO */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Nombre de la Prenda *</label>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Nombre del Artículo *</label>
                     <input required type="text" name="name" defaultValue={editingProduct?.name || ''} placeholder="Ej. Vestido Gala Satinado" className="w-full text-base sm:text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary" />
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Precio</label>
-                    <input type="text" inputMode="numeric" name="price" defaultValue={editingProduct?.price || ''} placeholder="Ej. $120.000" className="w-full text-base sm:text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary" />
+                    <input 
+                      type="text" 
+                      inputMode="numeric" 
+                      name="price" 
+                      value={priceInput} 
+                      onChange={handlePriceChange} 
+                      placeholder="Ej. $ 80.000" 
+                      className="w-full text-base sm:text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary font-medium" 
+                    />
                   </div>
                 </div>
 
@@ -982,14 +1206,9 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                     <select 
                       required 
                       name="categoryId" 
-                      defaultValue={editingProduct?.categoryId || ''} 
+                      value={selectedCategoryValue} 
                       className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary bg-white"
-                      onChange={(e) => {
-                        const newCatInput = document.getElementById('newCategoryContainer');
-                        if (newCatInput) {
-                          newCatInput.style.display = e.target.value === 'new' ? 'block' : 'none';
-                        }
-                      }}
+                      onChange={(e) => setSelectedCategoryValue(e.target.value)}
                     >
                       <option value="">Seleccionar categoría...</option>
                       {categoriesList.map(cat => (
@@ -999,10 +1218,18 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                     </select>
                   </div>
                   
-                  <div id="newCategoryContainer" style={{ display: 'none' }} className="flex-1">
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Nombre de la nueva categoría *</label>
-                    <input type="text" name="newCategoryName" placeholder="Ej. Conjuntos, Faldas, Enterizos..." className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary" />
-                  </div>
+                  {selectedCategoryValue === 'new' && (
+                    <div className="flex-1 mt-1">
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Nombre de la nueva categoría *</label>
+                      <input 
+                        type="text" 
+                        required
+                        name="newCategoryName" 
+                        placeholder="Ej. Conjuntos, Faldas, Enterizos..." 
+                        className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary" 
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* 4. SELECTOR INTERACTIVO DE TALLAS */}
@@ -1042,7 +1269,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                       type="text"
                       value={customSizeInput}
                       onChange={(e) => setCustomSizeInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSize(); } }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addCustomSize(); } }}
                       placeholder="Otra talla (ej. 36, 38, 8...)"
                       className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 flex-1 focus:outline-none focus:border-brand-primary"
                     />
@@ -1099,7 +1326,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                       type="text"
                       value={customColorInput}
                       onChange={(e) => setCustomColorInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomColor(); } }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addCustomColor(); } }}
                       placeholder="Otro color (ej. Palo de rosa, Mostaza...)"
                       className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 flex-1 focus:outline-none focus:border-brand-primary"
                     />
@@ -1116,7 +1343,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
                 {/* 6. DESCRIPCIÓN */}
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Descripción / Detalles de la prenda</label>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Descripción / Detalles del artículo</label>
                   <textarea name="description" rows={3} defaultValue={editingProduct?.descriptionText || ''} placeholder="Ej. Tela fresca y suave al tacto, horma perfecta, ideal para ocasiones casuales o elegantes..." className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-none"></textarea>
                 </div>
 
@@ -1136,7 +1363,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         {editingProduct ? 'Guardando cambios...' : 'Publicando en el catálogo...'}
                       </>
-                    ) : (editingProduct ? 'Guardar Cambios' : 'Publicar Prenda')}
+                    ) : (editingProduct ? 'Guardar Cambios' : 'Publicar Artículo')}
                   </button>
                 </div>
               </form>
@@ -1145,43 +1372,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
         </div>
       )}
 
-      {/* BOTÓN FLOTANTE MÓVIL (FAB) PARA SUBIR PRENDAS (SOLO ADMIN / COMERCIAL) */}
-      {canCreate && (
-        <button
-          type="button"
-          onClick={() => openUploadModal(null)}
-          className="fixed bottom-6 right-5 z-40 bg-brand-primary text-white shadow-2xl rounded-full pl-3 pr-5 py-2.5 flex items-center gap-2.5 font-bold text-sm active:scale-95 transition-all border-2 border-white/60 shadow-brand-primary/30"
-          title="Subir Nueva Prenda"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/app-icon.png" alt="Guapura" className="w-8 h-8 rounded-full object-cover bg-white p-0.5 shadow-sm" />
-          <span>Subir Prenda</span>
-        </button>
-      )}
 
-      {/* BOTÓN FLOTANTE FAB PARA INSTALAR LA APP */}
-      {isInstallable && (
-        <button
-          type="button"
-          onClick={handleInstallClick}
-          className={`fixed z-40 shadow-2xl rounded-full flex items-center gap-2.5 font-bold active:scale-95 transition-all ${
-            canCreate
-              ? 'bottom-6 left-5 bg-white text-brand-primary border-2 border-brand-primary/30 pl-2.5 pr-4 py-2 text-xs hover:bg-brand-light-blue shadow-brand-primary/20'
-              : 'bottom-6 right-5 bg-brand-primary text-white border-2 border-white/60 pl-3 pr-5 py-3 text-sm hover:bg-brand-accent shadow-brand-primary/30'
-          }`}
-          title="Instalar App Guapura en tu celular"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/app-icon.png"
-            alt="Guapura App"
-            className={`rounded-full object-cover shadow-sm ${
-              canCreate ? 'w-7 h-7 border border-brand-primary/20' : 'w-8 h-8 bg-white p-0.5'
-            }`}
-          />
-          <span className="tracking-tight">Instalar App</span>
-        </button>
-      )}
 
       {/* MODAL GUÍA DE INSTALACIÓN PWA */}
       {showInstallModal && (

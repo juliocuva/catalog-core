@@ -63,12 +63,43 @@ export async function updateProduct(productId: string, formData: FormData) {
     }
 
     // Handle new category
-    if (categoryId === 'new' && newCategoryName) {
-      const newCat = await payload.create({
+    if (categoryId === 'new') {
+      if (!newCategoryName) {
+        return { success: false, error: 'Por favor ingresa el nombre de la nueva categoría.' }
+      }
+
+      const existing = await payload.find({
         collection: 'categories',
-        data: { name: newCategoryName },
+        where: {
+          name: {
+            equals: newCategoryName,
+          },
+        },
+        limit: 1,
+        overrideAccess: true,
       })
-      categoryId = String(newCat.id)
+
+      if (existing.docs.length > 0) {
+        categoryId = String(existing.docs[0].id)
+      } else {
+        const defaultIcon =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M12 2a3 3 0 0 0-3 3c0 1.3.8 2.4 2 2.8V9l-8.5 7.5A2 2 0 0 0 4 20h16a2 2 0 0 0 1.5-3.5L13 9V7.8c1.2-.4 2-1.5 2-2.8a3 3 0 0 0-3-3z"/></svg>'
+
+        const newCat = await payload.create({
+          collection: 'categories',
+          data: {
+            name: newCategoryName,
+            icon: defaultIcon,
+          },
+          overrideAccess: true,
+        })
+        categoryId = String(newCat.id)
+      }
+    }
+
+    const numCategoryId = Number(categoryId)
+    if (!categoryId || isNaN(numCategoryId)) {
+      return { success: false, error: 'La categoría seleccionada no es válida.' }
     }
 
     // Build specifications array
@@ -150,7 +181,7 @@ export async function updateProduct(productId: string, formData: FormData) {
     const updateData: any = {
       name,
       description: lexicalDescription as any,
-      category: Number(categoryId),
+      category: numCategoryId,
       specifications,
       isNew,
     }
@@ -163,6 +194,7 @@ export async function updateProduct(productId: string, formData: FormData) {
       collection: 'products',
       id: productId,
       data: updateData,
+      overrideAccess: true,
     })
 
     revalidatePath('/catalogo')

@@ -3,17 +3,21 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
+const SAFE_FALLBACK_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23F8FAFC'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394A3B8' font-family='sans-serif' font-weight='600' font-size='15'%3EGuapura Boutique%3C/text%3E%3C/svg%3E";
+
 export function ProductGallery({ images, productName }: { images: string[]; productName: string }) {
   const [failedUrls, setFailedUrls] = useState<string[]>([]);
   const validImages = images.filter((url) => !failedUrls.includes(url));
-  const displayImages = validImages.length > 0 ? validImages : images;
+  const displayImages = validImages.length > 0 ? validImages : [SAFE_FALLBACK_IMAGE];
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const safeIndex = selectedIndex < displayImages.length ? selectedIndex : 0;
   const activeImage = displayImages[safeIndex] || displayImages[0];
 
   const handleImageError = (badUrl: string) => {
-    setFailedUrls((prev) => (prev.includes(badUrl) ? prev : [...prev, badUrl]));
+    if (badUrl && badUrl !== SAFE_FALLBACK_IMAGE) {
+      setFailedUrls((prev) => (prev.includes(badUrl) ? prev : [...prev, badUrl]));
+    }
   };
 
   return (
@@ -32,7 +36,10 @@ export function ProductGallery({ images, productName }: { images: string[]; prod
       <img
         src={activeImage}
         alt={productName}
-        onError={() => handleImageError(activeImage)}
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          handleImageError(activeImage);
+        }}
         className="w-full h-full max-h-[72vh] object-contain mix-blend-multiply p-6 md:p-8"
       />
 
@@ -51,7 +58,10 @@ export function ProductGallery({ images, productName }: { images: string[]; prod
               <img
                 src={imgUrl}
                 alt={`${productName} ${idx + 1}`}
-                onError={() => handleImageError(imgUrl)}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  handleImageError(imgUrl);
+                }}
                 className="w-full h-full object-cover"
               />
             </button>
