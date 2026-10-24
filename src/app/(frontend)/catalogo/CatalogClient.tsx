@@ -10,6 +10,7 @@ import { deleteCategory } from '@/app/actions/deleteCategory'
 import { createCategory } from '@/app/actions/createCategory'
 import { loginUser, logoutUser } from '@/app/actions/loginUser'
 import { getCategoryIconSvg } from '@/app/utils/categoryIcons'
+import { generateProductDescription } from '@/app/actions/generateProductDescription'
 
 function extractPlainTextDescription(desc: any): string {
   if (!desc) return '';
@@ -70,6 +71,44 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPriceValue(e.target.value);
     setPriceInput(formatted);
+  };
+
+  const [descriptionInput, setDescriptionInput] = useState<string>('');
+  const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
+
+  const handleGenerateAiDescription = async () => {
+    const nameInputEl = (typeof document !== 'undefined' ? document.querySelector('input[name="name"]') : null) as HTMLInputElement | null;
+    const currentName = nameInputEl?.value?.trim() || editingProduct?.name || '';
+
+    if (!currentName) {
+      alert('Por favor escribe primero el "Nombre del Artículo" para que la IA sepa qué prenda describir.');
+      return;
+    }
+
+    const currentCat = categoriesList.find(c => String(c.id) === String(selectedCategoryValue));
+    const catName = currentCat?.name || '';
+    const imgToAnalyze = imagePreviews.image1 || imagePreviews.image2 || imagePreviews.image3 || null;
+
+    setIsGeneratingAi(true);
+    try {
+      const res = await generateProductDescription({
+        name: currentName,
+        categoryName: catName,
+        colors: selectedColors,
+        sizes: selectedSizes,
+        imageBase64: imgToAnalyze,
+      });
+
+      if (res.success && res.description) {
+        setDescriptionInput(res.description);
+      } else {
+        alert(res.error || 'No se pudo generar la descripción');
+      }
+    } catch (err: any) {
+      alert('Error al generar descripción: ' + (err.message || 'Error de conexión'));
+    } finally {
+      setIsGeneratingAi(false);
+    }
   };
 
   // Interactive Upload State
@@ -154,12 +193,14 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       });
       setSelectedCategoryValue(product.categoryId ? String(product.categoryId) : '');
       setPriceInput(product.price ? formatPriceValue(product.price) : '');
+      setDescriptionInput(product.descriptionText || '');
     } else {
       setSelectedSizes([]);
       setSelectedColors([]);
       setImagePreviews({ image1: null, image2: null, image3: null });
       setSelectedCategoryValue('');
       setPriceInput('');
+      setDescriptionInput('');
     }
     setCustomSizeInput('');
     setCustomColorInput('');
@@ -1341,10 +1382,40 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                   <input type="hidden" name="colors" value={selectedColors.join(', ')} />
                 </div>
 
-                {/* 6. DESCRIPCIÓN */}
+                {/* 6. DESCRIPCIÓN CON BOTÓN IA */}
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Descripción / Detalles del artículo</label>
-                  <textarea name="description" rows={3} defaultValue={editingProduct?.descriptionText || ''} placeholder="Ej. Tela fresca y suave al tacto, horma perfecta, ideal para ocasiones casuales o elegantes..." className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-none"></textarea>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+                      Descripción / Detalles del artículo
+                    </label>
+                    <button
+                      type="button"
+                      disabled={isGeneratingAi}
+                      onClick={handleGenerateAiDescription}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gradient-to-r from-purple-600 via-brand-primary to-pink-500 text-white shadow-xs hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                      title="Generar descripción comercial automáticamente con IA"
+                    >
+                      {isGeneratingAi ? (
+                        <>
+                          <svg className="animate-spin w-3 h-3 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                          <span>Redactando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>✨</span>
+                          <span>Redactar con IA</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <textarea 
+                    name="description" 
+                    rows={3} 
+                    value={descriptionInput}
+                    onChange={(e) => setDescriptionInput(e.target.value)}
+                    placeholder="Ej. Tela fresca y suave al tacto, horma perfecta, ideal para ocasiones casuales o elegantes..." 
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-none leading-relaxed"
+                  />
                 </div>
 
                 {/* 7. ETIQUETA NUEVO */}
