@@ -43,6 +43,79 @@ const PRESET_COLORS = [
 
 const SAFE_FALLBACK_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23F8FAFC'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394A3B8' font-family='sans-serif' font-weight='600' font-size='15'%3EGuapura Boutique%3C/text%3E%3C/svg%3E";
 
+function compressFileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // 30 segundos de margen para procesadores móviles
+    const timeoutId = setTimeout(() => {
+      reject(new Error('La foto tardó demasiado en cargarse. Por favor intenta seleccionarla de nuevo.'));
+    }, 30000);
+
+    const reader = new FileReader();
+
+    reader.onerror = () => {
+      clearTimeout(timeoutId);
+      reject(new Error('No se pudo leer la foto del dispositivo.'));
+    };
+
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) {
+        clearTimeout(timeoutId);
+        return reject(new Error('Archivo de imagen vacío o no legible.'));
+      }
+
+      const img = new Image();
+
+      img.onload = () => {
+        clearTimeout(timeoutId);
+        try {
+          const maxDim = 1000;
+          let width = img.naturalWidth || img.width || 800;
+          let height = img.naturalHeight || img.height || 800;
+
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            return resolve(dataUrl);
+          }
+
+          // Fondo blanco para fotos con transparencia
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Calidad 0.78 produce imágenes nítidas de ~120KB ideales para móviles y Vercel
+          const compressed = canvas.toDataURL('image/jpeg', 0.78);
+          resolve(compressed);
+        } catch {
+          // En caso de fallo de canvas en móvil, usar el base64 directo de forma segura
+          resolve(dataUrl);
+        }
+      };
+
+      img.onerror = () => {
+        clearTimeout(timeoutId);
+        // Respaldo de base64 si el decodificador directo de Image falla
+        resolve(dataUrl);
+      };
+
+      img.src = dataUrl;
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function CatalogClient({ initialProducts, initialCategories, isAdmin = false, userRole = null }: { initialProducts: any[], initialCategories: any[], isAdmin?: boolean, userRole?: string | null }) {
   const router = useRouter();
   const [categoriesList, setCategoriesList] = useState(initialCategories);
@@ -121,6 +194,16 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
     image2: null,
     image3: null,
   });
+  const [compressedImages, setCompressedImages] = useState<{ [key: string]: string | null }>({
+    image1: null,
+    image2: null,
+    image3: null,
+  });
+  const [compressingSlots, setCompressingSlots] = useState<{ [key: string]: boolean }>({
+    image1: false,
+    image2: false,
+    image3: false,
+  });
 
   // Category Manager State
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
@@ -186,11 +269,13 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       setSelectedSizes(sizesArr);
       setSelectedColors(colorsArr);
       const rawImgs = product.rawImages || [];
-      setImagePreviews({
+      const initialImages = {
         image1: rawImgs[0] || product.image || null,
         image2: rawImgs[1] || null,
         image3: rawImgs[2] || null,
-      });
+      };
+      setImagePreviews(initialImages);
+      setCompressedImages(initialImages);
       setSelectedCategoryValue(product.categoryId ? String(product.categoryId) : '');
       setPriceInput(product.price ? formatPriceValue(product.price) : '');
       setDescriptionInput(product.descriptionText || '');
@@ -198,10 +283,12 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       setSelectedSizes([]);
       setSelectedColors([]);
       setImagePreviews({ image1: null, image2: null, image3: null });
+      setCompressedImages({ image1: null, image2: null, image3: null });
       setSelectedCategoryValue('');
       setPriceInput('');
       setDescriptionInput('');
     }
+    setCompressingSlots({ image1: false, image2: false, image3: false });
     setCustomSizeInput('');
     setCustomColorInput('');
     setIsUploadModalOpen(true);
@@ -209,17 +296,27 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
   const removeImage = (slot: string) => {
     setImagePreviews(prev => ({ ...prev, [slot]: null }));
+    setCompressedImages(prev => ({ ...prev, [slot]: null }));
+    setCompressingSlots(prev => ({ ...prev, [slot]: false }));
     if (typeof document !== 'undefined') {
       const inputEl = document.getElementById(`file-${slot}`) as HTMLInputElement | null;
       if (inputEl) inputEl.value = '';
     }
   };
 
-  const handleImageChange = (slot: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (slot: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreviews(prev => ({ ...prev, [slot]: previewUrl }));
+      setCompressingSlots(prev => ({ ...prev, [slot]: true }));
+      try {
+        const compressedBase64 = await compressFileToDataUrl(file);
+        setImagePreviews(prev => ({ ...prev, [slot]: compressedBase64 }));
+        setCompressedImages(prev => ({ ...prev, [slot]: compressedBase64 }));
+      } catch (err: any) {
+        alert(err.message || 'Error al procesar la foto.');
+      } finally {
+        setCompressingSlots(prev => ({ ...prev, [slot]: false }));
+      }
     }
   };
 
@@ -410,115 +507,15 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
     }
   };
 
-  const compressFileToDataUrl = (file: File): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Tiempo de espera agotado al comprimir la foto. Intenta con otra imagen.'));
-      }, 10000);
-
-      const cleanup = (url?: string) => {
-        clearTimeout(timeoutId);
-        if (url) {
-          try {
-            URL.revokeObjectURL(url);
-          } catch (e) {}
-        }
-      };
-
-      // 1. Try modern native createImageBitmap (fastest, lowest memory, handles EXIF)
-      if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
-        try {
-          const bitmap = await createImageBitmap(file);
-          const maxDim = 1000;
-          let width = bitmap.width;
-          let height = bitmap.height;
-          if (width > height && width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(bitmap, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-            bitmap.close();
-            cleanup();
-            return resolve(dataUrl);
-          }
-          bitmap.close();
-        } catch (bitmapErr) {
-          // Fallback to Image element
-        }
-      }
-
-      // 2. Fallback to HTML Image using blob URL
-      try {
-        const blobUrl = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            let width = img.naturalWidth || img.width;
-            let height = img.naturalHeight || img.height;
-            const maxDim = 1000;
-            if (width > height && width > maxDim) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else if (height > maxDim) {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-              cleanup(blobUrl);
-              return reject(new Error('No se pudo inicializar canvas'));
-            }
-            ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-            cleanup(blobUrl);
-            resolve(dataUrl);
-          } catch (err: any) {
-            cleanup(blobUrl);
-            reject(new Error('Error al comprimir: ' + (err.message || 'error')));
-          }
-        };
-
-        img.onerror = () => {
-          cleanup(blobUrl);
-          // 3. Fallback to FileReader
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const res = e.target?.result as string;
-            if (res) {
-              resolve(res);
-            } else {
-              reject(new Error('No se pudo decodificar la imagen'));
-            }
-          };
-          reader.onerror = () => {
-            reject(new Error('No se pudo leer la imagen'));
-          };
-          reader.readAsDataURL(file);
-        };
-
-        img.src = blobUrl;
-      } catch (err: any) {
-        cleanup();
-        reject(new Error('Error al procesar archivo: ' + err.message));
-      }
-    });
-  };
-
   const handleUploadProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // Si aún hay alguna foto procesándose en segundo plano, esperar
+    if (Object.values(compressingSlots).some(Boolean)) {
+      alert('Las fotos aún se están procesando. Por favor espera un momento.');
+      return;
+    }
+
     setIsUploading(true);
     try {
       const formEl = e.currentTarget;
@@ -554,19 +551,21 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       }
       formData.set('colors', finalColors.join(', '));
 
-      // Pre-compress selected files client-side and delete raw files
+      // Eliminar archivos crudos pesados del FormData y adjuntar solo las fotos comprimidas de ~120KB
       for (const slot of ['image1', 'image2', 'image3']) {
-        const file = formData.get(slot) as File | null;
-        if (file && file.size > 0) {
-          const base64 = await compressFileToDataUrl(file);
-          formData.append(`base64_${slot}`, base64);
-          // Delete raw file to avoid 15MB upload over mobile network
-          formData.delete(slot);
-        } else {
-          formData.delete(slot);
-          if (editingProduct && imagePreviews[slot] && imagePreviews[slot]?.startsWith('data:image')) {
-            formData.append(`base64_${slot}`, imagePreviews[slot]!);
+        formData.delete(slot);
+
+        let base64 = compressedImages[slot] || imagePreviews[slot];
+        if (!base64) {
+          const rawInput = formEl.elements.namedItem(slot) as HTMLInputElement | null;
+          const rawFile = rawInput?.files?.[0];
+          if (rawFile && rawFile.size > 0) {
+            base64 = await compressFileToDataUrl(rawFile);
           }
+        }
+
+        if (base64 && (base64.startsWith('data:image') || base64.startsWith('http'))) {
+          formData.append(`base64_${slot}`, base64);
         }
       }
 
@@ -587,7 +586,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       }
     } catch (err: any) {
       console.error('Error al subir artículo:', err);
-      alert('Error al procesar artículo: ' + (err.message || 'Error de conexión'));
+      alert('Error al guardar artículo: ' + (err.message || 'Error de conexión'));
     } finally {
       setIsUploading(false);
     }
@@ -1168,7 +1167,12 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                       { slot: 'image3', label: 'Foto 3', required: false },
                     ].map(({ slot, label, required }) => (
                       <div key={slot} className="relative aspect-square">
-                        {imagePreviews[slot] ? (
+                        {compressingSlots[slot] ? (
+                          <div className="w-full h-full rounded-2xl border-2 border-brand-primary/40 flex flex-col items-center justify-center p-2 bg-brand-light-blue/40 text-brand-primary animate-pulse shadow-xs">
+                            <svg className="w-5 h-5 animate-spin mb-1 text-brand-primary" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span className="text-[9px] font-bold">Procesando...</span>
+                          </div>
+                        ) : imagePreviews[slot] ? (
                           <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-brand-primary relative group bg-gray-50 shadow-sm">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={imagePreviews[slot]!} alt={label} className="w-full h-full object-cover" />
@@ -1201,7 +1205,7 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
                           id={`file-${slot}`}
                           type="file"
                           name={slot}
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp,image/*"
                           required={required}
                           onChange={(e) => handleImageChange(slot, e)}
                           className="hidden"
@@ -1428,12 +1432,18 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
                 {/* BOTÓN SUBMIT */}
                 <div className="pt-4 border-t border-gray-100">
-                  <button type="submit" disabled={isUploading} className="w-full bg-brand-primary text-white font-bold text-sm py-3.5 rounded-xl hover:bg-brand-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/20">
+                  <button
+                    type="submit"
+                    disabled={isUploading || Object.values(compressingSlots).some(Boolean)}
+                    className="w-full bg-brand-primary text-white font-bold text-sm py-3.5 rounded-xl hover:bg-brand-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/20"
+                  >
                     {isUploading ? (
                       <>
                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         {editingProduct ? 'Guardando cambios...' : 'Publicando en el catálogo...'}
                       </>
+                    ) : Object.values(compressingSlots).some(Boolean) ? (
+                      'Procesando fotos...'
                     ) : (editingProduct ? 'Guardar Cambios' : 'Publicar Artículo')}
                   </button>
                 </div>
