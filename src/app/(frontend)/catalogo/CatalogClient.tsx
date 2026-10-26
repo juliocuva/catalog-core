@@ -680,24 +680,25 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
             <div className="relative">
               <button 
                 type="button"
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} 
-                className={`p-2 rounded-full transition-colors flex items-center justify-center ${isUserMenuOpen || isAdmin ? 'bg-brand-primary/10 text-brand-primary' : 'hover:bg-gray-100 text-gray-600 hover:text-brand-primary'}`} 
+                onClick={() => setIsUserMenuOpen((prev) => !prev)} 
+                className={`p-2.5 min-w-[40px] min-h-[40px] rounded-full transition-all flex items-center justify-center relative z-50 cursor-pointer touch-manipulation select-none active:scale-95 ${isUserMenuOpen || isAdmin ? 'bg-brand-primary/15 text-brand-primary' : 'hover:bg-gray-100 text-gray-600 hover:text-brand-primary'}`} 
                 title="Usuario"
+                aria-label="Menú de usuario"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <svg className="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               </button>
 
-              {/* Backdrop para cerrar al hacer clic afuera */}
+              {/* Backdrop para cerrar al hacer clic o tap afuera */}
               {isUserMenuOpen && (
                 <div 
-                  className="fixed inset-0 z-40 bg-transparent" 
+                  className="fixed inset-0 z-40 bg-black/10 cursor-pointer touch-manipulation" 
                   onClick={() => setIsUserMenuOpen(false)} 
                 />
               )}
 
               {/* Menú Desplegable */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2.5 w-64 md:w-72 rounded-2xl bg-white shadow-2xl border border-gray-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 mt-2.5 w-64 md:w-72 rounded-2xl bg-white shadow-2xl border border-gray-100 py-2 z-50 shadow-[0_12px_35px_-5px_rgba(0,0,0,0.18)] block">
                   {/* Encabezado de Sesión */}
                   <div className="px-4 py-2.5 border-b border-gray-100">
                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</div>
@@ -949,8 +950,8 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
       {/* LOGIN MODAL */}
       {isLoginModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-[420px] rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative bg-gradient-to-br from-white via-brand-light-blue/30 to-brand-light-blue/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+          <div className="w-full max-w-[420px] rounded-3xl shadow-2xl overflow-hidden relative bg-gradient-to-br from-white via-brand-light-blue/30 to-brand-light-blue/60">
             
             {/* Close Button */}
             <button onClick={() => { setIsLoginModalOpen(false); setShowPassword(false); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10 p-2">
@@ -1030,8 +1031,8 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
       {/* SHARE MODAL */}
       {isShareModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -1085,8 +1086,8 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
       {/* CATEGORY MANAGER MODAL */}
       {isCategoryManagerOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 shrink-0">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
@@ -1155,8 +1156,8 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
       {/* UPLOAD MODAL */}
       {isUploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 shrink-0">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -1476,8 +1477,8 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
 
       {/* MODAL GUÍA DE INSTALACIÓN PWA */}
       {showInstallModal && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col p-6">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col p-6">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
