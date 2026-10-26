@@ -676,135 +676,115 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
               <span className="hidden sm:inline">Compartir Catálogo</span>
             </button>
 
-            {/* User Dropdown */}
+            {/* User Dropdown / Login Link */}
             <div className="relative">
-              <button 
-                type="button"
-                onClick={() => setIsUserMenuOpen((prev) => !prev)} 
-                className={`p-2.5 min-w-[40px] min-h-[40px] rounded-full transition-all flex items-center justify-center relative z-50 cursor-pointer touch-manipulation select-none active:scale-95 ${isUserMenuOpen || isAdmin ? 'bg-brand-primary/15 text-brand-primary' : 'hover:bg-gray-100 text-gray-600 hover:text-brand-primary'}`} 
-                title="Usuario"
-                aria-label="Menú de usuario"
-              >
-                <svg className="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-              </button>
+              {!isAdmin ? (
+                <Link 
+                  href="/login" 
+                  className="p-2.5 min-w-[40px] min-h-[40px] rounded-full transition-all flex items-center justify-center relative z-50 cursor-pointer touch-manipulation hover:bg-gray-100 text-gray-600 hover:text-brand-primary active:scale-95" 
+                  title="Acceso Comercial / Iniciar Sesión"
+                  aria-label="Iniciar Sesión"
+                >
+                  <svg className="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                </Link>
+              ) : (
+                <>
+                  <button 
+                    type="button"
+                    onClick={() => setIsUserMenuOpen((prev) => !prev)} 
+                    className={`p-2.5 min-w-[40px] min-h-[40px] rounded-full transition-all flex items-center justify-center relative z-50 cursor-pointer touch-manipulation select-none active:scale-95 ${isUserMenuOpen ? 'bg-brand-primary/15 text-brand-primary' : 'hover:bg-gray-100 text-gray-600 hover:text-brand-primary'}`} 
+                    title="Usuario"
+                    aria-label="Menú de usuario"
+                  >
+                    <svg className="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  </button>
 
-              {/* Backdrop para cerrar al hacer clic o tap afuera */}
-              {isUserMenuOpen && (
-                <div 
-                  className="fixed inset-0 z-40 bg-black/10 cursor-pointer touch-manipulation" 
-                  onClick={() => setIsUserMenuOpen(false)} 
-                />
-              )}
+                  {/* Backdrop para cerrar al hacer clic o tap afuera */}
+                  {isUserMenuOpen && (
+                    <div 
+                      className="fixed inset-0 z-40 bg-black/10 cursor-pointer touch-manipulation" 
+                      onClick={() => setIsUserMenuOpen(false)} 
+                    />
+                  )}
 
-              {/* Menú Desplegable */}
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2.5 w-64 md:w-72 rounded-2xl bg-white shadow-2xl border border-gray-100 py-2 z-50 shadow-[0_12px_35px_-5px_rgba(0,0,0,0.18)] block">
-                  {/* Encabezado de Sesión */}
-                  <div className="px-4 py-2.5 border-b border-gray-100">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</div>
-                    <div className="text-xs font-bold text-gray-800 capitalize flex items-center gap-1.5 mt-0.5">
-                      <span className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-emerald-500' : 'bg-gray-300'}`}></span>
-                      {isAdmin ? `${userRole || 'Administrador'}` : 'Acceso Comercial'}
+                  {/* Menú Desplegable */}
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-2.5 w-64 md:w-72 rounded-2xl bg-white shadow-2xl border border-gray-100 py-2 z-50 shadow-[0_12px_35px_-5px_rgba(0,0,0,0.18)] block">
+                      {/* Encabezado de Sesión */}
+                      <div className="px-4 py-2.5 border-b border-gray-100">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</div>
+                        <div className="text-xs font-bold text-gray-800 capitalize flex items-center gap-1.5 mt-0.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          {userRole || 'Administrador'}
+                        </div>
+                      </div>
+
+                      <div className="py-1">
+                        {/* Botón 1: Instalar App */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            handleInstallClick();
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src="/app-icon.png" alt="Guapura App" className="w-6 h-6 rounded-full object-cover shadow-xs group-hover:scale-105 transition-transform shrink-0" />
+                          <div>
+                            <div className="font-bold text-brand-primary">Instalar App</div>
+                            <div className="text-[10px] text-gray-400 font-normal">En este celular o PC</div>
+                          </div>
+                        </button>
+
+                        {/* Botón 2: Gestión de Roles */}
+                        <a
+                          href="/admin/collections/users"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
+                        >
+                          <div className="w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 group-hover:bg-brand-primary group-hover:text-white transition-colors">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                          </div>
+                          <div>
+                            <div className="font-bold text-gray-800">Gestión de Roles</div>
+                            <div className="text-[10px] text-gray-400 font-normal">Usuarios, roles y permisos</div>
+                          </div>
+                        </a>
+
+                        {/* Botón 3: Cerrar Sesión */}
+                        <div className="pt-1 mt-1 border-t border-gray-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              if (confirm('¿Seguro que deseas cerrar sesión?')) {
+                                logoutUser().then(() => window.location.reload());
+                              }
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                          >
+                            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                            <span>Cerrar Sesión</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="py-1">
-                    {/* Botón 1: Instalar App */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        handleInstallClick();
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/app-icon.png" alt="Guapura App" className="w-6 h-6 rounded-full object-cover shadow-xs group-hover:scale-105 transition-transform shrink-0" />
-                      <div>
-                        <div className="font-bold text-brand-primary">Instalar App</div>
-                        <div className="text-[10px] text-gray-400 font-normal">En este celular o PC</div>
-                      </div>
-                    </button>
-
-                    {/* Botón 2: Gestión de Roles */}
-                    {isAdmin ? (
-                      <a
-                        href="/admin/collections/users"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 group-hover:bg-brand-primary group-hover:text-white transition-colors">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                        </div>
-                        <div>
-                          <div className="font-bold text-gray-800">Gestión de Roles</div>
-                          <div className="text-[10px] text-gray-400 font-normal">Usuarios, roles y permisos</div>
-                        </div>
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          setIsLoginModalOpen(true);
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-brand-light-blue/50 hover:text-brand-primary flex items-center gap-3 transition-colors group"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 group-hover:bg-brand-primary group-hover:text-white transition-colors">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                        </div>
-                        <div>
-                          <div className="font-bold text-gray-800">Gestión de Roles</div>
-                          <div className="text-[10px] text-gray-400 font-normal">Iniciar sesión para administrar</div>
-                        </div>
-                      </button>
-                    )}
-
-                    {/* Iniciar Sesión (si no está autenticado) */}
-                    {!isAdmin && (
-                      <div className="pt-1 mt-1 border-t border-gray-100">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            setIsLoginModalOpen(true);
-                          }}
-                          className="w-full text-left px-4 py-2 text-xs font-bold text-brand-primary hover:bg-brand-light-blue/50 flex items-center gap-3 transition-colors"
-                        >
-                          <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
-                          <span>Iniciar Sesión Comercial</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Cerrar Sesión (si está autenticado) */}
-                    {isAdmin && (
-                      <div className="pt-1 mt-1 border-t border-gray-100">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            if (confirm('¿Seguro que deseas cerrar sesión?')) {
-                              logoutUser().then(() => window.location.reload());
-                            }
-                          }}
-                          className="w-full text-left px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-3 transition-colors"
-                        >
-                          <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                          <span>Cerrar Sesión</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  )}
+                </>
               )}
             </div>
+
             {/* Create Product (Admin/Comercial) */}
             {canCreate && (
-              <button onClick={() => openUploadModal(null)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-colors bg-brand-primary text-white text-xs font-bold hover:bg-brand-accent shadow-sm" title="Subir Artículo">
+              <Link 
+                href="/subir-articulo" 
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-colors bg-brand-primary text-white text-xs font-bold hover:bg-brand-accent shadow-sm" 
+                title="Subir Artículo"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
                 <span>Subir Artículo</span>
-              </button>
+              </Link>
             )}
           </div>
         </div>

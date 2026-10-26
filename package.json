@@ -31,5 +31,11 @@
     "postcss-preset-env": "^11.6.1",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "browserslist": [
+    "> 0.2%",
+    "not dead",
+    "ios_saf >= 12",
+    "safari >= 12"
+  ]
 }
