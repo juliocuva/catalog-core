@@ -121,6 +121,14 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
   const [categoriesList, setCategoriesList] = useState(initialCategories);
   const [productsList, setProductsList] = useState(initialProducts);
 
+  useEffect(() => {
+    setProductsList(initialProducts);
+  }, [initialProducts]);
+
+  useEffect(() => {
+    setCategoriesList(initialCategories);
+  }, [initialCategories]);
+
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareTargetProduct, setShareTargetProduct] = useState<any>(null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -577,6 +585,17 @@ export default function CatalogClient({ initialProducts, initialCategories, isAd
       }
       
       if (result.success) {
+        const resAny = result as any;
+        if (resAny.newCategory) {
+          setCategoriesList(prev => [...prev, resAny.newCategory]);
+        }
+        if (resAny.product) {
+          if (editingProduct) {
+            setProductsList(prev => prev.map(p => String(p.id) === String(editingProduct.id) ? resAny.product : p));
+          } else {
+            setProductsList(prev => [resAny.product, ...prev]);
+          }
+        }
         setIsUploadModalOpen(false);
         setEditingProduct(null);
         setSelectedCategoryValue('');

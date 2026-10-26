@@ -70,6 +70,7 @@ export async function uploadProduct(formData: FormData) {
     }
 
     // Handle new category
+    let createdCategory: any = null
     if (categoryId === 'new') {
       if (!newCategoryName) {
         return { success: false, error: 'Por favor ingresa el nombre de la nueva categoría.' }
@@ -101,6 +102,7 @@ export async function uploadProduct(formData: FormData) {
           overrideAccess: true,
         })
         categoryId = String(newCat.id)
+        createdCategory = newCat
       }
     }
 
@@ -206,7 +208,7 @@ export async function uploadProduct(formData: FormData) {
     revalidatePath('/catalogo')
     revalidatePath('/')
 
-    return { success: true, product: newProduct }
+    return { success: true, product: newProduct, newCategory: createdCategory }
   } catch (error: any) {
     console.error('Error uploading product:', error)
     return { success: false, error: error.message || 'Error al subir el producto' }
