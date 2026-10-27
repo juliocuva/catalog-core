@@ -87,10 +87,12 @@ export function CopyProductLinkButton({ url }: { url: string }) {
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
-      className="flex-1 py-3 px-4 rounded-xl border border-brand-primary text-brand-primary font-bold text-xs md:text-sm flex items-center justify-center gap-2 hover:bg-brand-primary/5 transition active:scale-95 shadow-sm"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-gray-500 hover:text-brand-primary bg-gray-50 hover:bg-brand-light-blue/40 border border-gray-200 transition-colors shadow-xs active:scale-95 cursor-pointer touch-manipulation"
+      title="Compartir o copiar enlace"
     >
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -98,7 +100,7 @@ export function CopyProductLinkButton({ url }: { url: string }) {
           d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
         />
       </svg>
-      {copied ? '¡Copiado!' : 'Copiar Link'}
+      <span>{copied ? '¡Copiado!' : 'Compartir'}</span>
     </button>
   );
 }
